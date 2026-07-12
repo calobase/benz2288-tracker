@@ -66,17 +66,78 @@ PRICES_JSON    = BASE_DIR / "prices.json"
 DASHBOARD_HTML = BASE_DIR / "index.html"
 
 # ══════════════════════════════════════════════════════
-#  📐 OCR 座標（3302×4097 原圖中「現金價」欄位的像素範圍）
-#  格式：(x1, y1, x2, y2)
-#  若辨識結果不對，請執行 --calibrate 模式後對照 calibrate.jpg 調整
-#  2026-06-22 更新：店家版面大改，各色合併為單行
+#  📐 機型定義：名稱 + 價格區間 + 上次成功的座標（快取）
+#  座標會在辨識失敗時自動重新掃描並更新至 coords.json
 # ══════════════════════════════════════════════════════
 
-MODELS = {
-    "iPhone 17 256G 黑/藍/白/紫/綠":    (873, 1107, 966, 1143),
-    "iPhone 17 Pro 256G":               (873, 1350, 966, 1386),
-    "iPhone 17 Pro Max 256G 銀/橘":     (873, 1517, 966, 1552),
-}
+MODELS_DEF = [
+    {
+        "name":  "iPhone 17 256G 黑/藍/白/紫/綠",
+        "range": (20000, 32000),
+        "default_coords": (873, 1107, 966, 1143),
+    },
+    {
+        "name":  "iPhone 17 Pro 256G",
+        "range": (32000, 42000),
+        "default_coords": (873, 1350, 966, 1386),
+    },
+    {
+        "name":  "iPhone 17 Pro Max 256G 銀/橘",
+        "range": (38000, 55000),
+        "default_coords": (873, 1517, 966, 1552),
+    },
+]
+
+COORDS_JSON = BASE_DIR / "coords.json"
+
+def load_coords() -> dict:
+    if COORDS_JSON.exists():
+        raw = json.loads(COORDS_JSON.read_text(encoding="utf-8"))
+        return {k: tuple(v) for k, v in raw.items()}
+    return {m["name"]: m["default_coords"] for m in MODELS_DEF}
+
+def save_coords(coords: dict):
+    COORDS_JSON.write_text(
+        json.dumps({k: list(v) for k, v in coords.items()}, ensure_ascii=False, indent=2),
+        encoding="utf-8"
+    )
+
+def auto_scan_coords(img: Image.Image) -> dict:
+    """掃描整個現金價欄位，自動比對各機型的 y 座標"""
+    print("🔍 自動掃描座標中...")
+    hits = []
+    for y1 in range(800, 2600, 4):
+        price = ocr_price(img, (873, y1, 966, y1 + 36))
+        if price:
+            hits.append((y1 + 18, price))
+
+    # 合併鄰近命中（±25px 視為同一行）
+    clusters = []
+    for y, price in hits:
+        if clusters and y - clusters[-1][0] < 25:
+            clusters[-1] = ((y + clusters[-1][0]) // 2, price)
+        else:
+            clusters.append((y, price))
+
+    print(f"   找到 {len(clusters)} 個價格行")
+
+    # 依機型定義順序，逐一從剩餘 clusters 中挑選符合價格區間的第一個
+    new_coords = {}
+    used = set()
+    for m in MODELS_DEF:
+        lo, hi = m["range"]
+        for i, (y_center, price) in enumerate(clusters):
+            if i not in used and lo <= price <= hi:
+                y1 = y_center - 18
+                y2 = y_center + 18
+                new_coords[m["name"]] = (873, y1, 966, y2)
+                used.add(i)
+                print(f"   ✅ {m['name']} → y={y1}~{y2}  ${price:,}")
+                break
+        else:
+            print(f"   ❌ {m['name']} → 未找到符合的行（區間 ${lo:,}~${hi:,}）")
+
+    return new_coords
 
 CHART_COLORS = ["#f87171", "#60a5fa", "#fbbf24", "#34d399", "#a78bfa"]
 
@@ -165,11 +226,11 @@ def ocr_price(img: Image.Image, box: tuple, scale: int = 4) -> int | None:
     return int(m.group(1).replace(",", "")) if m else None
 
 
-def calibrate(img: Image.Image):
+def calibrate(img: Image.Image, coords: dict):
     """在原圖上標示所有 OCR 框，儲存為 calibrate.jpg 供人工比對"""
     debug = img.copy()
     draw = ImageDraw.Draw(debug)
-    for name, box in MODELS.items():
+    for name, box in coords.items():
         draw.rectangle(box, outline="red", width=4)
         price = ocr_price(img, box)
         label = f"{name[:20]} → {'$'+f'{price:,}' if price else 'FAIL'}"
@@ -177,8 +238,6 @@ def calibrate(img: Image.Image):
     out = BASE_DIR / "calibrate.jpg"
     debug.save(out)
     print(f"📸 已儲存 {out}")
-    print("   請用圖片檢視器開啟，確認紅框是否落在正確的價格儲存格上")
-    print("   若有偏差，調整 tracker.py 頂部 MODELS 字典內的座標後重試")
 
 # ══════════════════════════════════════════════════════
 #  💾 資料儲存（prices.json）
@@ -316,7 +375,7 @@ def _chart_json(all_data: dict, dates: list, models: list, color_offset: int) ->
 
 def generate_dashboard(all_data: dict):
     dates = sorted(all_data.keys())
-    model_names = list(MODELS.keys())
+    model_names = [m["name"] for m in MODELS_DEF]
 
     latest_date = dates[-1] if dates else "N/A"
     prev_date   = dates[-2] if len(dates) >= 2 else None
@@ -504,31 +563,43 @@ def main():
     img = download_image(url)
     print(f"   尺寸：{img.size[0]}×{img.size[1]} px")
 
+    coords = load_coords()
+
     if is_calibrate:
-        calibrate(img)
+        calibrate(img, coords)
         return
 
-    # OCR
+    # OCR（先用快取座標，失敗則自動重新掃描）
     print("\n💰 OCR 辨識現金價：")
     today_prices = {}
-    all_ok = True
-    for model, box in MODELS.items():
+    for model, box in coords.items():
         price = ocr_price(img, box)
         today_prices[model] = price
-        status = f"${price:,}" if price else "❌ 辨識失敗（請執行 --calibrate）"
-        if not price:
-            all_ok = False
-        print(f"   {model}: {status}")
+        print(f"   {model}: {'$'+f'{price:,}' if price else '⚠️  辨識失敗，嘗試自動校準...'}")
 
-    if not all_ok:
-        failed = [m for m, p in today_prices.items() if not p]
-        print("\n⚠️  部分機型辨識失敗，建議執行 python tracker.py --calibrate 校準座標")
-        send_error_email(
-            "OCR 辨識失敗，座標可能需要重新校準",
-            "失敗機型：\n" + "\n".join(f"  - {m}" for m in failed) +
-            f"\n\nGIF 尺寸：{img.size[0]}×{img.size[1]} px\n"
-            "請執行：python tracker.py --calibrate 確認座標"
-        )
+    failed = [m for m, p in today_prices.items() if not p]
+    if failed:
+        new_coords = auto_scan_coords(img)
+        for model in failed:
+            if model in new_coords:
+                price = ocr_price(img, new_coords[model])
+                today_prices[model] = price
+                if price:
+                    coords[model] = new_coords[model]
+                    print(f"   ✅ 自動校準後辨識成功：{model} = ${price:,}")
+                else:
+                    print(f"   ❌ {model} 自動校準後仍失敗")
+
+        # 將更新後的座標存回 coords.json
+        save_coords(coords)
+
+        still_failed = [m for m, p in today_prices.items() if not p]
+        if still_failed:
+            send_error_email(
+                "OCR 自動校準後仍失敗，需要人工介入",
+                "失敗機型：\n" + "\n".join(f"  - {m}" for m in still_failed) +
+                f"\n\nGIF 尺寸：{img.size[0]}×{img.size[1]} px"
+            )
 
     # 儲存
     date_str = gif_date.isoformat()
