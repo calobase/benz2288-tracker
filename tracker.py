@@ -577,6 +577,9 @@ def main():
         today_prices[model] = price
         print(f"   {model}: {'$'+f'{price:,}' if price else '⚠️  辨識失敗，嘗試自動校準...'}")
 
+    # 每次都儲存座標（確保 coords.json 存在且為最新）
+    save_coords(coords)
+
     failed = [m for m, p in today_prices.items() if not p]
     if failed:
         new_coords = auto_scan_coords(img)
