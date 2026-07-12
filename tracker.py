@@ -56,8 +56,10 @@ def _load_app_password() -> str:
 
 GMAIL_APP_PASSWORD = _load_app_password()
 
-# Tesseract 安裝路徑（預設 Windows 安裝位置）
-TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+# Tesseract 安裝路徑（Windows 用絕對路徑，Linux 用 PATH）
+import platform as _platform
+TESSERACT_CMD = (r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+                 if _platform.system() == "Windows" else "tesseract")
 
 BASE_DIR       = Path(__file__).parent
 PRICES_JSON    = BASE_DIR / "prices.json"

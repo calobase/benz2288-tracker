@@ -1,0 +1,41 @@
+name: Daily Price Tracker
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # 每天 UTC 03:00 = 台灣時間 11:00
+  workflow_dispatch:       # 允許手動觸發
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Tesseract OCR
+        run: sudo apt-get install -y tesseract-ocr
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: pip install requests pillow pytesseract
+
+      - name: Run tracker
+        env:
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python tracker.py --push
+
+      - name: Commit updated prices.json & index.html
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add prices.json index.html
+          git diff --staged --quiet || git commit -m "price update $(date +%Y-%m-%d)"
+          git push
