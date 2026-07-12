@@ -11,6 +11,12 @@ benz2288 iPhone 17 現金價追蹤器
 
 import os, sys, re, io, json, smtplib, subprocess
 from datetime import date, datetime
+
+# 強制 stdout/stderr 使用 UTF-8，避免 Windows cp950 無法顯示 emoji
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -31,9 +37,24 @@ except ImportError:
 
 GMAIL_USER         = "calobase@gmail.com"
 NOTIFY_TO          = "calobase@gmail.com"
-# Gmail App Password 請用環境變數設定，不要寫在程式裡：
-#   Windows PowerShell: $env:GMAIL_APP_PASSWORD = "xxxx xxxx xxxx xxxx"
-GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
+
+# 載入 .env 檔（優先用環境變數，其次讀檔）
+def _load_env() -> dict:
+    env_file = Path(__file__).parent / ".env"
+    result = {}
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8-sig").splitlines():
+            if "=" in line and not line.startswith("#"):
+                k, v = line.split("=", 1)
+                result[k.strip()] = v.strip()
+    return result
+
+_ENV = _load_env()
+
+def _load_app_password() -> str:
+    return os.environ.get("GMAIL_APP_PASSWORD") or _ENV.get("GMAIL_APP_PASSWORD", "")
+
+GMAIL_APP_PASSWORD = _load_app_password()
 
 # Tesseract 安裝路徑（預設 Windows 安裝位置）
 TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
@@ -43,17 +64,16 @@ PRICES_JSON    = BASE_DIR / "prices.json"
 DASHBOARD_HTML = BASE_DIR / "index.html"
 
 # ══════════════════════════════════════════════════════
-#  📐 OCR 座標（3302×4066 原圖中「現金價」欄位的像素範圍）
+#  📐 OCR 座標（3302×4097 原圖中「現金價」欄位的像素範圍）
 #  格式：(x1, y1, x2, y2)
 #  若辨識結果不對，請執行 --calibrate 模式後對照 calibrate.jpg 調整
+#  2026-06-22 更新：店家版面大改，各色合併為單行
 # ══════════════════════════════════════════════════════
 
 MODELS = {
-    "iPhone 17 256G 綠/紫/白":      (873, 1192, 966, 1228),
-    "iPhone 17 256G 黑/藍":         (873, 1219, 966, 1257),
-    "iPhone 17 Pro 256G 銀/藍/橘":  (873, 1465, 966, 1503),
-    "iPhone 17 Pro Max 256G 銀":    (873, 1686, 966, 1724),
-    "iPhone 17 Pro Max 256G 橘/藍": (873, 1719, 966, 1757),
+    "iPhone 17 256G 黑/藍/白/紫/綠":    (873, 1107, 966, 1143),
+    "iPhone 17 Pro 256G":               (873, 1350, 966, 1386),
+    "iPhone 17 Pro Max 256G 銀/橘":     (873, 1517, 966, 1552),
 }
 
 CHART_COLORS = ["#f87171", "#60a5fa", "#fbbf24", "#34d399", "#a78bfa"]
@@ -82,31 +102,47 @@ class _GifFinder(HTMLParser):
 
 def find_latest_gif():
     """
-    從首頁 HTML 解析報價 GIF 連結。
-    店家的 GIF 檔名不一定每天更換，但內容會覆蓋更新，
-    日期顯示在圖片右上角。資料庫日期使用系統今日日期。
-    回傳 (absolute_url, date.today())
+    從首頁 HTML 解析報價 GIF 連結，失敗時自動重試 3 次（間隔 30 秒）。
+    喚醒後網路尚未就緒時仍能成功。
     """
-    try:
-        r = requests.get(SITE_ROOT, headers=HEADERS, timeout=15)
-        r.raise_for_status()
-        parser = _GifFinder()
-        parser.feed(r.text)
-        if parser.gif_urls:
-            href = parser.gif_urls[0]
-            url  = href if href.startswith("http") else SITE_ROOT + "/" + href.lstrip("/")
-            print(f"✅ 從首頁找到報價表：{url}")
-            return url, date.today()
-    except Exception as e:
-        print(f"⚠️  首頁解析失敗：{e}")
+    import time
+    last_err = None
+    for attempt in range(1, 6):
+        try:
+            r = requests.get(SITE_ROOT, headers=HEADERS, timeout=15)
+            r.raise_for_status()
+            parser = _GifFinder()
+            parser.feed(r.text)
+            if parser.gif_urls:
+                href = parser.gif_urls[0]
+                url  = href if href.startswith("http") else SITE_ROOT + "/" + href.lstrip("/")
+                print(f"✅ 從首頁找到報價表：{url}")
+                return url, date.today()
+        except Exception as e:
+            last_err = e
+            print(f"⚠️  首頁解析失敗（第 {attempt} 次）：{e}")
+            if attempt < 5:
+                print(f"   60 秒後重試...")
+                time.sleep(60)
 
     return None, None
 
 
 def download_image(url: str) -> Image.Image:
-    r = requests.get(url, headers=HEADERS, timeout=30)
-    r.raise_for_status()
-    return Image.open(io.BytesIO(r.content)).convert("RGB")
+    import time
+    last_err = None
+    for attempt in range(1, 6):
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=30)
+            r.raise_for_status()
+            return Image.open(io.BytesIO(r.content)).convert("RGB")
+        except Exception as e:
+            last_err = e
+            print(f"⚠️  GIF 下載失敗（第 {attempt} 次）：{e}")
+            if attempt < 5:
+                print("   60 秒後重試...")
+                time.sleep(60)
+    raise RuntimeError(f"GIF 下載重試 5 次仍失敗：{last_err}")
 
 # ══════════════════════════════════════════════════════
 #  🔍 OCR
@@ -121,7 +157,7 @@ def ocr_price(img: Image.Image, box: tuple, scale: int = 4) -> int | None:
     cropped = ImageEnhance.Contrast(cropped).enhance(2.5)
     text = pytesseract.image_to_string(
         cropped,
-        config="--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789$,"
+        config="--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789,"
     ).strip()
     m = re.search(r"(\d[\d,]{3,})", text)
     return int(m.group(1).replace(",", "")) if m else None
@@ -212,40 +248,150 @@ def send_email(changes: dict, date_str: str):
         s.send_message(msg)
     print(f"📧 通知信已寄出 → {NOTIFY_TO}")
 
+def send_error_email(subject: str, detail: str):
+    if not GMAIL_APP_PASSWORD:
+        return
+    body = f"""
+    <html><body style="font-family:-apple-system,sans-serif;max-width:600px;margin:auto;padding:20px">
+      <h2 style="color:#dc2626">❌ benz2288 價格追蹤器執行失敗</h2>
+      <p style="color:#374151"><strong>{subject}</strong></p>
+      <pre style="background:#f3f4f6;padding:16px;border-radius:8px;font-size:13px;
+                  white-space:pre-wrap;word-break:break-all">{detail}</pre>
+      <p style="color:#9ca3af;font-size:12px;margin-top:20px">
+        發生時間：{datetime.now():%Y-%m-%d %H:%M} · 請手動執行 python tracker.py --push 補跑
+      </p>
+    </body></html>"""
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"❌ iPhone 17 追蹤器失敗 - {datetime.now():%m/%d %H:%M}"
+        msg["From"]    = GMAIL_USER
+        msg["To"]      = NOTIFY_TO
+        msg.attach(MIMEText(body, "html", "utf-8"))
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
+            s.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+            s.send_message(msg)
+        print(f"📧 錯誤通知已寄出 → {NOTIFY_TO}")
+    except Exception as e:
+        print(f"⚠️  錯誤通知寄送失敗：{e}")
+
 # ══════════════════════════════════════════════════════
 #  📊 公開 Dashboard（index.html）
 #  靜態 HTML，可直接部署到 Cloudflare Pages / GitHub Pages
 # ══════════════════════════════════════════════════════
 
+CHART_GROUPS = [
+    ("iPhone 17", ["iPhone 17 256G 黑/藍/白/紫/綠"]),
+    ("iPhone 17 Pro", ["iPhone 17 Pro 256G"]),
+    ("iPhone 17 Pro Max", ["iPhone 17 Pro Max 256G 銀/橘"]),
+]
+
+def _y_range(all_data: dict, models: list) -> tuple:
+    vals = [all_data[d][m] for d in all_data for m in models
+            if m in all_data[d] and all_data[d][m] is not None]
+    if not vals:
+        return 20000, 50000
+    lo, hi = min(vals), max(vals)
+    margin = max((hi - lo) * 1.5, 500)
+    return int(lo - margin), int(hi + margin)
+
+def _chart_json(all_data: dict, dates: list, models: list, color_offset: int) -> str:
+    labels = [d[5:] for d in dates]
+    datasets = []
+    for i, model in enumerate(models):
+        color = CHART_COLORS[(color_offset + i) % len(CHART_COLORS)]
+        datasets.append({
+            "label": model,
+            "data": [all_data[d].get(model) for d in dates],
+            "borderColor": color,
+            "backgroundColor": color + "22",
+            "tension": 0.3,
+            "fill": False,
+            "pointRadius": 5,
+            "pointHoverRadius": 8,
+            "spanGaps": True,
+        })
+    return json.dumps({"labels": labels, "datasets": datasets}, ensure_ascii=False)
+
 def generate_dashboard(all_data: dict):
     dates = sorted(all_data.keys())
     model_names = list(MODELS.keys())
 
-    datasets = []
-    for i, model in enumerate(model_names):
-        color = CHART_COLORS[i % len(CHART_COLORS)]
-        datasets.append({
-            "label": model,
-            "data": [{"x": d, "y": all_data[d].get(model)} for d in dates],
-            "borderColor": color,
-            "backgroundColor": color + "22",
-            "tension": 0.35,
-            "fill": False,
-            "pointRadius": 5,
-            "pointHoverRadius": 8,
-        })
-
-    chart_json = json.dumps({"datasets": datasets}, ensure_ascii=False)
-
     latest_date = dates[-1] if dates else "N/A"
+    prev_date   = dates[-2] if len(dates) >= 2 else None
     latest = all_data.get(latest_date, {})
+    prev   = all_data.get(prev_date, {}) if prev_date else {}
+
+    def diff_cell(model):
+        cur = latest.get(model)
+        pre = prev.get(model)
+        if cur is None or pre is None:
+            return '<td class="diff-none">—</td>'
+        d = cur - pre
+        if d > 0:
+            return f'<td class="diff-up">+{d:,}</td>'
+        if d < 0:
+            return f'<td class="diff-down">{d:,}</td>'
+        return '<td class="diff-none">—</td>'
 
     today_rows = "".join(
         f"""<tr>
           <td class="model-name">{model}</td>
           <td class="model-price">{"$" + f"{latest[model]:,}" if latest.get(model) else "—"}</td>
+          {diff_cell(model)}
         </tr>"""
         for model in model_names
+    )
+
+    # 為每個圖表群組產生 JSON 與 y 軸範圍
+    color_offset = 0
+    chart_blocks = []
+    for group_name, group_models in CHART_GROUPS:
+        cj = _chart_json(all_data, dates, group_models, color_offset)
+        y_min, y_max = _y_range(all_data, group_models)
+        chart_blocks.append((group_name, cj, y_min, y_max))
+        color_offset += len(group_models)
+
+    def chart_script(idx, cj, y_min, y_max):
+        return f"""
+<script>
+new Chart(document.getElementById("chart{idx}"), {{
+  type: "line",
+  data: {cj},
+  options: {{
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {{
+      legend: {{
+        position: "bottom",
+        labels: {{ color: "#8b949e", font: {{ size: 12 }}, padding: 18, boxWidth: 14 }}
+      }},
+      tooltip: {{
+        callbacks: {{
+          label: c =>
+            ` ${{c.dataset.label}}: ${{c.parsed.y != null ? "$" + c.parsed.y.toLocaleString() : "N/A"}}`
+        }}
+      }}
+    }},
+    scales: {{
+      x: {{ grid: {{ color: "#21262d" }}, ticks: {{ color: "#6e7681" }} }},
+      y: {{
+        min: {y_min},
+        max: {y_max},
+        grid: {{ color: "#21262d" }},
+        ticks: {{ color: "#6e7681", callback: v => "$" + v.toLocaleString() }}
+      }}
+    }}
+  }}
+}});
+</script>"""
+
+    chart_cards = "".join(
+        f"""  <div class="card">
+    <div class="card-label">價格趨勢 · {name}</div>
+    <div class="chart-wrap"><canvas id="chart{i}"></canvas></div>
+  </div>
+""" + chart_script(i, cj, y_min, y_max)
+        for i, (name, cj, y_min, y_max) in enumerate(chart_blocks)
     )
 
     html = f"""<!DOCTYPE html>
@@ -255,7 +401,6 @@ def generate_dashboard(all_data: dict):
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>benz2288 iPhone 17 價格追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0 }}
     body {{
@@ -283,7 +428,7 @@ def generate_dashboard(all_data: dict):
       font-weight: 400; text-transform: none; letter-spacing: 0;
     }}
 
-    .chart-wrap {{ position: relative; height: 380px }}
+    .chart-wrap {{ position: relative; height: 260px }}
 
     table {{ width: 100%; border-collapse: collapse; font-size: 14px }}
     th, td {{ padding: 11px 14px; border-bottom: 1px solid #21262d }}
@@ -294,6 +439,9 @@ def generate_dashboard(all_data: dict):
     td.model-name  {{ color: #c9d1d9 }}
     td.model-price {{ text-align: right; font-weight: 700;
                       color: #f87171; font-size: 16px; font-variant-numeric: tabular-nums }}
+    td.diff-up   {{ text-align: right; font-weight: 600; color: #f87171; font-variant-numeric: tabular-nums }}
+    td.diff-down {{ text-align: right; font-weight: 600; color: #3fb950; font-variant-numeric: tabular-nums }}
+    td.diff-none {{ text-align: right; color: #484f58 }}
 
     footer {{ text-align: right; font-size: 11px; color: #484f58; margin-top: 12px }}
     a {{ color: #58a6ff; text-decoration: none }}
@@ -310,60 +458,18 @@ def generate_dashboard(all_data: dict):
   <div class="card">
     <div class="card-label">最新報價 <span class="badge">{latest_date}</span></div>
     <table>
-      <tr><th>機型</th><th style="text-align:right">現金價</th></tr>
+      <tr><th>機型</th><th style="text-align:right">現金價</th><th style="text-align:right">與前日</th></tr>
       {today_rows}
     </table>
   </div>
 
-  <div class="card">
-    <div class="card-label">價格趨勢</div>
-    <div class="chart-wrap">
-      <canvas id="priceChart"></canvas>
-    </div>
-  </div>
+{chart_cards}
 
   <footer>
     最後更新：{datetime.now():%Y-%m-%d %H:%M:%S} ·
     資料以實際報價為準，本頁僅供參考
   </footer>
 </div>
-
-<script>
-const cfg = {chart_json};
-new Chart(document.getElementById("priceChart"), {{
-  type: "line",
-  data: cfg,
-  options: {{
-    responsive: true,
-    maintainAspectRatio: false,
-    parsing: false,
-    plugins: {{
-      legend: {{
-        position: "bottom",
-        labels: {{ color: "#8b949e", font: {{ size: 12 }}, padding: 18, boxWidth: 14 }}
-      }},
-      tooltip: {{
-        callbacks: {{
-          label: c =>
-            ` ${{c.dataset.label}}: ${{c.parsed.y != null ? "$" + c.parsed.y.toLocaleString() : "N/A"}}`
-        }}
-      }}
-    }},
-    scales: {{
-      x: {{
-        type: "time",
-        time: {{ unit: "day", tooltipFormat: "yyyy-MM-dd", displayFormats: {{ day: "MM/dd" }} }},
-        grid: {{ color: "#21262d" }},
-        ticks: {{ color: "#6e7681" }}
-      }},
-      y: {{
-        grid: {{ color: "#21262d" }},
-        ticks: {{ color: "#6e7681", callback: v => "$" + v.toLocaleString() }}
-      }}
-    }}
-  }}
-}});
-</script>
 </body>
 </html>"""
 
@@ -386,8 +492,7 @@ def main():
 
     url, gif_date = find_latest_gif()
     if not url:
-        print("❌ 找不到可用的 GIF（店家可能尚未更新今日報價）")
-        sys.exit(1)
+        raise RuntimeError("重試 3 次仍無法取得 GIF，網路可能異常或店家暫時下架報價表")
 
     if dry_run:
         print("ℹ️  Dry-run 模式，不執行 OCR 及寫入")
@@ -414,7 +519,14 @@ def main():
         print(f"   {model}: {status}")
 
     if not all_ok:
+        failed = [m for m, p in today_prices.items() if not p]
         print("\n⚠️  部分機型辨識失敗，建議執行 python tracker.py --calibrate 校準座標")
+        send_error_email(
+            "OCR 辨識失敗，座標可能需要重新校準",
+            "失敗機型：\n" + "\n".join(f"  - {m}" for m in failed) +
+            f"\n\nGIF 尺寸：{img.size[0]}×{img.size[1]} px\n"
+            "請執行：python tracker.py --calibrate 確認座標"
+        )
 
     # 儲存
     date_str = gif_date.isoformat()
@@ -443,22 +555,39 @@ def main():
     # 生成 Dashboard
     generate_dashboard(all_data)
 
-    # 選擇性 git push
+    # 選擇性部署到 Cloudflare Pages
     if auto_push:
-        print("\n📤 Git push 至 GitHub...")
-        subprocess.run(["git", "add", "prices.json", "index.html"], cwd=BASE_DIR, check=True)
+        print("\n📤 部署至 Cloudflare Pages...")
+        deploy_env = os.environ.copy()
+        cf_token = os.environ.get("CLOUDFLARE_API_TOKEN") or _ENV.get("CLOUDFLARE_API_TOKEN", "")
+        if cf_token:
+            deploy_env["CLOUDFLARE_API_TOKEN"] = cf_token
         result = subprocess.run(
-            ["git", "commit", "-m", f"chore: price update {date_str}"],
-            cwd=BASE_DIR, capture_output=True, text=True
+            "npx wrangler pages deploy . --project-name benz2288-tracker --branch main --commit-dirty=true",
+            cwd=BASE_DIR, capture_output=True, text=True, shell=True,
+            encoding="utf-8", errors="replace", env=deploy_env
         )
-        if "nothing to commit" in result.stdout + result.stderr:
-            print("ℹ️  無新變動，跳過 commit")
+        if result.returncode == 0:
+            # 從輸出中擷取部署 URL
+            for line in result.stdout.splitlines():
+                if "pages.dev" in line:
+                    print(f"✅ {line.strip()}")
+                    break
+            else:
+                print("✅ 部署完成")
         else:
-            subprocess.run(["git", "push"], cwd=BASE_DIR, check=True)
-            print("✅ 已推送至 GitHub")
+            print(f"⚠️  部署失敗：{result.stderr[-300:]}")
 
     print(f"\n🎉 完成！用瀏覽器開啟 index.html 查看 Dashboard")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (Exception, SystemExit) as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(f"\n❌ 執行失敗：{e}\n{tb}")
+        if not isinstance(e, SystemExit) or e.code != 0:
+            send_error_email(str(e), tb)
+        sys.exit(getattr(e, "code", 1) or 1)

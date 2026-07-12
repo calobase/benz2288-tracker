@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>benz2288 iPhone 17 價格追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
     body {
@@ -33,7 +32,7 @@
       font-weight: 400; text-transform: none; letter-spacing: 0;
     }
 
-    .chart-wrap { position: relative; height: 380px }
+    .chart-wrap { position: relative; height: 260px }
 
     table { width: 100%; border-collapse: collapse; font-size: 14px }
     th, td { padding: 11px 14px; border-bottom: 1px solid #21262d }
@@ -44,6 +43,9 @@
     td.model-name  { color: #c9d1d9 }
     td.model-price { text-align: right; font-weight: 700;
                       color: #f87171; font-size: 16px; font-variant-numeric: tabular-nums }
+    td.diff-up   { text-align: right; font-weight: 600; color: #f87171; font-variant-numeric: tabular-nums }
+    td.diff-down { text-align: right; font-weight: 600; color: #3fb950; font-variant-numeric: tabular-nums }
+    td.diff-none { text-align: right; color: #484f58 }
 
     footer { text-align: right; font-size: 11px; color: #484f58; margin-top: 12px }
     a { color: #58a6ff; text-decoration: none }
@@ -58,50 +60,37 @@
   </header>
 
   <div class="card">
-    <div class="card-label">最新報價 <span class="badge">2026-05-23</span></div>
+    <div class="card-label">最新報價 <span class="badge">2026-07-13</span></div>
     <table>
-      <tr><th>機型</th><th style="text-align:right">現金價</th></tr>
+      <tr><th>機型</th><th style="text-align:right">現金價</th><th style="text-align:right">與前日</th></tr>
       <tr>
-          <td class="model-name">iPhone 17 256G 綠/紫/白</td>
-          <td class="model-price">$25,800</td>
+          <td class="model-name">iPhone 17 256G 黑/藍/白/紫/綠</td>
+          <td class="model-price">$27,500</td>
+          <td class="diff-up">+300</td>
         </tr><tr>
-          <td class="model-name">iPhone 17 256G 黑/藍</td>
-          <td class="model-price">$25,800</td>
+          <td class="model-name">iPhone 17 Pro 256G</td>
+          <td class="model-price">$36,800</td>
+          <td class="diff-none">—</td>
         </tr><tr>
-          <td class="model-name">iPhone 17 Pro 256G 銀/藍/橘</td>
-          <td class="model-price">$37,300</td>
-        </tr><tr>
-          <td class="model-name">iPhone 17 Pro Max 256G 銀</td>
-          <td class="model-price">$42,300</td>
-        </tr><tr>
-          <td class="model-name">iPhone 17 Pro Max 256G 橘/藍</td>
-          <td class="model-price">$42,200</td>
+          <td class="model-name">iPhone 17 Pro Max 256G 銀/橘</td>
+          <td class="model-price">$41,200</td>
+          <td class="diff-down">-300</td>
         </tr>
     </table>
   </div>
 
   <div class="card">
-    <div class="card-label">價格趨勢</div>
-    <div class="chart-wrap">
-      <canvas id="priceChart"></canvas>
-    </div>
+    <div class="card-label">價格趨勢 · iPhone 17</div>
+    <div class="chart-wrap"><canvas id="chart0"></canvas></div>
   </div>
 
-  <footer>
-    最後更新：2026-05-23 19:25:58 ·
-    資料以實際報價為準，本頁僅供參考
-  </footer>
-</div>
-
 <script>
-const cfg = {"datasets": [{"label": "iPhone 17 256G 綠/紫/白", "data": [{"x": "2026-05-23", "y": 25800}], "borderColor": "#f87171", "backgroundColor": "#f8717122", "tension": 0.35, "fill": false, "pointRadius": 5, "pointHoverRadius": 8}, {"label": "iPhone 17 256G 黑/藍", "data": [{"x": "2026-05-23", "y": 25800}], "borderColor": "#60a5fa", "backgroundColor": "#60a5fa22", "tension": 0.35, "fill": false, "pointRadius": 5, "pointHoverRadius": 8}, {"label": "iPhone 17 Pro 256G 銀/藍/橘", "data": [{"x": "2026-05-23", "y": 37300}], "borderColor": "#fbbf24", "backgroundColor": "#fbbf2422", "tension": 0.35, "fill": false, "pointRadius": 5, "pointHoverRadius": 8}, {"label": "iPhone 17 Pro Max 256G 銀", "data": [{"x": "2026-05-23", "y": 42300}], "borderColor": "#34d399", "backgroundColor": "#34d39922", "tension": 0.35, "fill": false, "pointRadius": 5, "pointHoverRadius": 8}, {"label": "iPhone 17 Pro Max 256G 橘/藍", "data": [{"x": "2026-05-23", "y": 42200}], "borderColor": "#a78bfa", "backgroundColor": "#a78bfa22", "tension": 0.35, "fill": false, "pointRadius": 5, "pointHoverRadius": 8}]};
-new Chart(document.getElementById("priceChart"), {
+new Chart(document.getElementById("chart0"), {
   type: "line",
-  data: cfg,
+  data: {"labels": ["05-23", "05-24", "05-25", "05-26", "05-27", "05-28", "05-29", "05-30", "05-31", "06-01", "06-02", "06-03", "06-04", "06-05", "06-06", "06-07", "06-08", "06-09", "06-10", "06-11", "06-12", "06-13", "06-14", "06-15", "06-16", "06-17", "06-18", "06-19", "06-20", "06-21", "06-22", "06-24", "06-25", "06-27", "06-28", "06-30", "07-02", "07-13"], "datasets": [{"label": "iPhone 17 256G 黑/藍/白/紫/綠", "data": [25800, 25800, 26000, 26000, 26000, 26000, 26000, 26100, 26100, 26100, 26100, 26100, 26100, 26100, 26100, 26100, 26100, 26100, 26100, 26100, 26050, 26050, 26050, 26050, 26050, 26050, 26050, 26100, 26100, 26100, 26100, 26200, 26200, 26200, 26500, 27300, 27200, 27500], "borderColor": "#f87171", "backgroundColor": "#f8717122", "tension": 0.3, "fill": false, "pointRadius": 5, "pointHoverRadius": 8, "spanGaps": true}]},
   options: {
     responsive: true,
     maintainAspectRatio: false,
-    parsing: false,
     plugins: {
       legend: {
         position: "bottom",
@@ -115,13 +104,80 @@ new Chart(document.getElementById("priceChart"), {
       }
     },
     scales: {
-      x: {
-        type: "time",
-        time: { unit: "day", tooltipFormat: "yyyy-MM-dd", displayFormats: { day: "MM/dd" } },
-        grid: { color: "#21262d" },
-        ticks: { color: "#6e7681" }
-      },
+      x: { grid: { color: "#21262d" }, ticks: { color: "#6e7681" } },
       y: {
+        min: 23250,
+        max: 30050,
+        grid: { color: "#21262d" },
+        ticks: { color: "#6e7681", callback: v => "$" + v.toLocaleString() }
+      }
+    }
+  }
+});
+</script>  <div class="card">
+    <div class="card-label">價格趨勢 · iPhone 17 Pro</div>
+    <div class="chart-wrap"><canvas id="chart1"></canvas></div>
+  </div>
+
+<script>
+new Chart(document.getElementById("chart1"), {
+  type: "line",
+  data: {"labels": ["05-23", "05-24", "05-25", "05-26", "05-27", "05-28", "05-29", "05-30", "05-31", "06-01", "06-02", "06-03", "06-04", "06-05", "06-06", "06-07", "06-08", "06-09", "06-10", "06-11", "06-12", "06-13", "06-14", "06-15", "06-16", "06-17", "06-18", "06-19", "06-20", "06-21", "06-22", "06-24", "06-25", "06-27", "06-28", "06-30", "07-02", "07-13"], "datasets": [{"label": "iPhone 17 Pro 256G", "data": [37300, 37300, 37300, 37300, 37300, 37500, 37500, 37500, 37500, 37500, 37500, 37500, 37500, 37500, 37500, 37500, 37500, 36300, 36300, 37000, 36900, 36600, 36600, 36600, 36600, 36600, 36400, 36400, 36400, 36400, null, null, 36300, 36300, 36500, 36800, 36800, 36800], "borderColor": "#60a5fa", "backgroundColor": "#60a5fa22", "tension": 0.3, "fill": false, "pointRadius": 5, "pointHoverRadius": 8, "spanGaps": true}]},
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "bottom",
+        labels: { color: "#8b949e", font: { size: 12 }, padding: 18, boxWidth: 14 }
+      },
+      tooltip: {
+        callbacks: {
+          label: c =>
+            ` ${c.dataset.label}: ${c.parsed.y != null ? "$" + c.parsed.y.toLocaleString() : "N/A"}`
+        }
+      }
+    },
+    scales: {
+      x: { grid: { color: "#21262d" }, ticks: { color: "#6e7681" } },
+      y: {
+        min: 34500,
+        max: 39300,
+        grid: { color: "#21262d" },
+        ticks: { color: "#6e7681", callback: v => "$" + v.toLocaleString() }
+      }
+    }
+  }
+});
+</script>  <div class="card">
+    <div class="card-label">價格趨勢 · iPhone 17 Pro Max</div>
+    <div class="chart-wrap"><canvas id="chart2"></canvas></div>
+  </div>
+
+<script>
+new Chart(document.getElementById("chart2"), {
+  type: "line",
+  data: {"labels": ["05-23", "05-24", "05-25", "05-26", "05-27", "05-28", "05-29", "05-30", "05-31", "06-01", "06-02", "06-03", "06-04", "06-05", "06-06", "06-07", "06-08", "06-09", "06-10", "06-11", "06-12", "06-13", "06-14", "06-15", "06-16", "06-17", "06-18", "06-19", "06-20", "06-21", "06-22", "06-24", "06-25", "06-27", "06-28", "06-30", "07-02", "07-13"], "datasets": [{"label": "iPhone 17 Pro Max 256G 銀/橘", "data": [42250, 42250, 42250, 42300, 42400, 42600, 42400, 42250, 42250, 42250, 42250, 42000, 42000, 42000, 42000, 42000, 42000, 41600, 41600, 41600, 41600, 41300, 41200, 41200, 41100, 41100, 40900, 40900, 40900, 40900, 40900, 40900, 40900, 40900, 41100, 41500, 41500, 41200], "borderColor": "#fbbf24", "backgroundColor": "#fbbf2422", "tension": 0.3, "fill": false, "pointRadius": 5, "pointHoverRadius": 8, "spanGaps": true}]},
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "bottom",
+        labels: { color: "#8b949e", font: { size: 12 }, padding: 18, boxWidth: 14 }
+      },
+      tooltip: {
+        callbacks: {
+          label: c =>
+            ` ${c.dataset.label}: ${c.parsed.y != null ? "$" + c.parsed.y.toLocaleString() : "N/A"}`
+        }
+      }
+    },
+    scales: {
+      x: { grid: { color: "#21262d" }, ticks: { color: "#6e7681" } },
+      y: {
+        min: 38350,
+        max: 45150,
         grid: { color: "#21262d" },
         ticks: { color: "#6e7681", callback: v => "$" + v.toLocaleString() }
       }
@@ -129,5 +185,11 @@ new Chart(document.getElementById("priceChart"), {
   }
 });
 </script>
+
+  <footer>
+    最後更新：2026-07-13 01:11:17 ·
+    資料以實際報價為準，本頁僅供參考
+  </footer>
+</div>
 </body>
 </html>

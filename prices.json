@@ -4,6 +4,341 @@
     "iPhone 17 256G 黑/藍": 25800,
     "iPhone 17 Pro 256G 銀/藍/橘": 37300,
     "iPhone 17 Pro Max 256G 銀": 42300,
-    "iPhone 17 Pro Max 256G 橘/藍": 42200
+    "iPhone 17 Pro Max 256G 橘/藍": 42200,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 25800,
+    "iPhone 17 Pro 256G": 37300,
+    "iPhone 17 Pro Max 256G 銀/橘": 42250
+  },
+  "2026-05-24": {
+    "iPhone 17 256G 綠/紫/白": 25800,
+    "iPhone 17 256G 黑/藍": 25800,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37300,
+    "iPhone 17 Pro Max 256G 銀": 42300,
+    "iPhone 17 Pro Max 256G 橘/藍": 42200,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 25800,
+    "iPhone 17 Pro 256G": 37300,
+    "iPhone 17 Pro Max 256G 銀/橘": 42250
+  },
+  "2026-05-25": {
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 256G 黑/藍": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37300,
+    "iPhone 17 Pro Max 256G 銀": 42300,
+    "iPhone 17 Pro Max 256G 橘/藍": 42200,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26000,
+    "iPhone 17 Pro 256G": 37300,
+    "iPhone 17 Pro Max 256G 銀/橘": 42250
+  },
+  "2026-05-26": {
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 256G 黑/藍": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37300,
+    "iPhone 17 Pro Max 256G 銀": 42300,
+    "iPhone 17 Pro Max 256G 橘/藍": 42300,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26000,
+    "iPhone 17 Pro 256G": 37300,
+    "iPhone 17 Pro Max 256G 銀/橘": 42300
+  },
+  "2026-05-27": {
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 256G 黑/藍": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37300,
+    "iPhone 17 Pro Max 256G 銀": 42500,
+    "iPhone 17 Pro Max 256G 橘/藍": 42300,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26000,
+    "iPhone 17 Pro 256G": 37300,
+    "iPhone 17 Pro Max 256G 銀/橘": 42400
+  },
+  "2026-05-28": {
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 256G 黑/藍": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37500,
+    "iPhone 17 Pro Max 256G 銀": 42700,
+    "iPhone 17 Pro Max 256G 橘/藍": 42500,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26000,
+    "iPhone 17 Pro 256G": 37500,
+    "iPhone 17 Pro Max 256G 銀/橘": 42600
+  },
+  "2026-05-29": {
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 256G 黑/藍": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37500,
+    "iPhone 17 Pro Max 256G 銀": 42500,
+    "iPhone 17 Pro Max 256G 橘/藍": 42300,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26000,
+    "iPhone 17 Pro 256G": 37500,
+    "iPhone 17 Pro Max 256G 銀/橘": 42400
+  },
+  "2026-05-30": {
+    "iPhone 17 256G 黑/藍": 26200,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37500,
+    "iPhone 17 Pro Max 256G 銀": 42300,
+    "iPhone 17 Pro Max 256G 橘/藍": 42200,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G": 37500,
+    "iPhone 17 Pro Max 256G 銀/橘": 42250
+  },
+  "2026-05-31": {
+    "iPhone 17 256G 黑/藍": 26200,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37500,
+    "iPhone 17 Pro Max 256G 銀": 42300,
+    "iPhone 17 Pro Max 256G 橘/藍": 42200,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G": 37500,
+    "iPhone 17 Pro Max 256G 銀/橘": 42250
+  },
+  "2026-06-01": {
+    "iPhone 17 256G 黑/藍": 26200,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37500,
+    "iPhone 17 Pro Max 256G 銀": 42300,
+    "iPhone 17 Pro Max 256G 橘/藍": 42200,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G": 37500,
+    "iPhone 17 Pro Max 256G 銀/橘": 42250
+  },
+  "2026-06-02": {
+    "iPhone 17 256G 黑/藍": 26200,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37500,
+    "iPhone 17 Pro Max 256G 銀": 42300,
+    "iPhone 17 Pro Max 256G 橘/藍": 42200,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G": 37500,
+    "iPhone 17 Pro Max 256G 銀/橘": 42250
+  },
+  "2026-06-03": {
+    "iPhone 17 256G 黑/藍": 26200,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37500,
+    "iPhone 17 Pro Max 256G 銀": 42000,
+    "iPhone 17 Pro Max 256G 橘/藍": 42000,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G": 37500,
+    "iPhone 17 Pro Max 256G 銀/橘": 42000
+  },
+  "2026-06-04": {
+    "iPhone 17 256G 黑/藍": 26200,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37500,
+    "iPhone 17 Pro Max 256G 銀": 42000,
+    "iPhone 17 Pro Max 256G 橘/藍": 42000,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G": 37500,
+    "iPhone 17 Pro Max 256G 銀/橘": 42000
+  },
+  "2026-06-05": {
+    "iPhone 17 256G 黑/藍": 26200,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37500,
+    "iPhone 17 Pro Max 256G 銀": 42000,
+    "iPhone 17 Pro Max 256G 橘/藍": 42000,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G": 37500,
+    "iPhone 17 Pro Max 256G 銀/橘": 42000
+  },
+  "2026-06-06": {
+    "iPhone 17 256G 黑/藍": 26200,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37500,
+    "iPhone 17 Pro Max 256G 銀": 42000,
+    "iPhone 17 Pro Max 256G 橘/藍": 42000,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G": 37500,
+    "iPhone 17 Pro Max 256G 銀/橘": 42000
+  },
+  "2026-06-07": {
+    "iPhone 17 256G 黑/藍": 26200,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37500,
+    "iPhone 17 Pro Max 256G 銀": 42000,
+    "iPhone 17 Pro Max 256G 橘/藍": 42000,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G": 37500,
+    "iPhone 17 Pro Max 256G 銀/橘": 42000
+  },
+  "2026-06-08": {
+    "iPhone 17 256G 黑/藍": 26200,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37500,
+    "iPhone 17 Pro Max 256G 銀": 42000,
+    "iPhone 17 Pro Max 256G 橘/藍": 42000,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G": 37500,
+    "iPhone 17 Pro Max 256G 銀/橘": 42000
+  },
+  "2026-06-09": {
+    "iPhone 17 256G 黑/藍": 26200,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 36300,
+    "iPhone 17 Pro Max 256G 銀": 41600,
+    "iPhone 17 Pro Max 256G 橘/藍": 41600,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G": 36300,
+    "iPhone 17 Pro Max 256G 銀/橘": 41600
+  },
+  "2026-06-10": {
+    "iPhone 17 256G 黑/藍": 26200,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 36300,
+    "iPhone 17 Pro Max 256G 銀": 41600,
+    "iPhone 17 Pro Max 256G 橘/藍": 41600,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G": 36300,
+    "iPhone 17 Pro Max 256G 銀/橘": 41600
+  },
+  "2026-06-11": {
+    "iPhone 17 256G 黑/藍": 26200,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 37000,
+    "iPhone 17 Pro Max 256G 銀": 41600,
+    "iPhone 17 Pro Max 256G 橘/藍": 41600,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G": 37000,
+    "iPhone 17 Pro Max 256G 銀/橘": 41600
+  },
+  "2026-06-12": {
+    "iPhone 17 256G 黑/藍": 26100,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 36900,
+    "iPhone 17 Pro Max 256G 銀": 41500,
+    "iPhone 17 Pro Max 256G 橘/藍": 41700,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26050,
+    "iPhone 17 Pro 256G": 36900,
+    "iPhone 17 Pro Max 256G 銀/橘": 41600
+  },
+  "2026-06-13": {
+    "iPhone 17 256G 黑/藍": 26100,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 36600,
+    "iPhone 17 Pro Max 256G 銀": 41300,
+    "iPhone 17 Pro Max 256G 橘/藍": 41300,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26050,
+    "iPhone 17 Pro 256G": 36600,
+    "iPhone 17 Pro Max 256G 銀/橘": 41300
+  },
+  "2026-06-14": {
+    "iPhone 17 256G 黑/藍": 26100,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 36600,
+    "iPhone 17 Pro Max 256G 銀": 41200,
+    "iPhone 17 Pro Max 256G 橘/藍": 41200,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26050,
+    "iPhone 17 Pro 256G": 36600,
+    "iPhone 17 Pro Max 256G 銀/橘": 41200
+  },
+  "2026-06-15": {
+    "iPhone 17 256G 黑/藍": 26100,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 36600,
+    "iPhone 17 Pro Max 256G 銀": 41200,
+    "iPhone 17 Pro Max 256G 橘/藍": 41200,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26050,
+    "iPhone 17 Pro 256G": 36600,
+    "iPhone 17 Pro Max 256G 銀/橘": 41200
+  },
+  "2026-06-16": {
+    "iPhone 17 256G 黑/藍": 26100,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 36600,
+    "iPhone 17 Pro Max 256G 銀": 41100,
+    "iPhone 17 Pro Max 256G 橘/藍": 41100,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26050,
+    "iPhone 17 Pro 256G": 36600,
+    "iPhone 17 Pro Max 256G 銀/橘": 41100
+  },
+  "2026-06-17": {
+    "iPhone 17 256G 黑/藍": 26100,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 36600,
+    "iPhone 17 Pro Max 256G 銀": 41100,
+    "iPhone 17 Pro Max 256G 橘/藍": 41100,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26050,
+    "iPhone 17 Pro 256G": 36600,
+    "iPhone 17 Pro Max 256G 銀/橘": 41100
+  },
+  "2026-06-18": {
+    "iPhone 17 256G 黑/藍": 26100,
+    "iPhone 17 256G 綠/紫/白": 26000,
+    "iPhone 17 Pro 256G 銀/藍/橘": 36400,
+    "iPhone 17 Pro Max 256G 銀": 40900,
+    "iPhone 17 Pro Max 256G 橘/藍": 40900,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26050,
+    "iPhone 17 Pro 256G": 36400,
+    "iPhone 17 Pro Max 256G 銀/橘": 40900
+  },
+  "2026-06-19": {
+    "iPhone 17 256G 黑/藍": null,
+    "iPhone 17 256G 綠/紫/白": 26100,
+    "iPhone 17 Pro 256G 銀/藍/橘": 36400,
+    "iPhone 17 Pro Max 256G 銀": 40900,
+    "iPhone 17 Pro Max 256G 橘/藍": 40900,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G": 36400,
+    "iPhone 17 Pro Max 256G 銀/橘": 40900
+  },
+  "2026-06-20": {
+    "iPhone 17 256G 黑/藍": null,
+    "iPhone 17 256G 綠/紫/白": 26100,
+    "iPhone 17 Pro 256G 銀/藍/橘": 36400,
+    "iPhone 17 Pro Max 256G 銀": 40900,
+    "iPhone 17 Pro Max 256G 橘/藍": 40900,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G": 36400,
+    "iPhone 17 Pro Max 256G 銀/橘": 40900
+  },
+  "2026-06-21": {
+    "iPhone 17 256G 黑/藍": null,
+    "iPhone 17 256G 綠/紫/白": 26100,
+    "iPhone 17 Pro 256G 銀/藍/橘": 36400,
+    "iPhone 17 Pro Max 256G 銀": null,
+    "iPhone 17 Pro Max 256G 橘/藍": 40900,
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G": 36400,
+    "iPhone 17 Pro Max 256G 銀/橘": 40900
+  },
+  "2026-06-22": {
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26100,
+    "iPhone 17 Pro 256G 藍": 36400,
+    "iPhone 17 Pro 256G 橘/銀": 36300,
+    "iPhone 17 Pro Max 256G 銀/橘": 40900
+  },
+  "2026-06-24": {
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26200,
+    "iPhone 17 Pro 256G 藍": null,
+    "iPhone 17 Pro 256G 橘/銀": 36300,
+    "iPhone 17 Pro Max 256G 銀/橘": 40900
+  },
+  "2026-06-25": {
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26200,
+    "iPhone 17 Pro 256G": 36300,
+    "iPhone 17 Pro Max 256G 銀/橘": 40900
+  },
+  "2026-06-27": {
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26200,
+    "iPhone 17 Pro 256G": 36300,
+    "iPhone 17 Pro Max 256G 銀/橘": 40900
+  },
+  "2026-06-28": {
+    "iPhone 17 256G 黑/藍/白/紫/綠": 26500,
+    "iPhone 17 Pro 256G": 36500,
+    "iPhone 17 Pro Max 256G 銀/橘": 41100
+  },
+  "2026-06-30": {
+    "iPhone 17 256G 黑/藍/白/紫/綠": 27300,
+    "iPhone 17 Pro 256G": 36800,
+    "iPhone 17 Pro Max 256G 銀/橘": 41500
+  },
+  "2026-07-02": {
+    "iPhone 17 256G 黑/藍/白/紫/綠": 27200,
+    "iPhone 17 Pro 256G": 36800,
+    "iPhone 17 Pro Max 256G 銀/橘": 41500
+  },
+  "2026-07-13": {
+    "iPhone 17 256G 黑/藍/白/紫/綠": 27500,
+    "iPhone 17 Pro 256G": 36800,
+    "iPhone 17 Pro Max 256G 銀/橘": 41200
   }
 }
