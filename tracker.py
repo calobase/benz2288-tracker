@@ -583,15 +583,21 @@ def main():
     failed = [m for m, p in today_prices.items() if not p]
     if failed:
         new_coords = auto_scan_coords(img)
+        # 建立 name→range 查找表
+        model_range = {m["name"]: m["range"] for m in MODELS_DEF}
         for model in failed:
             if model in new_coords:
                 price = ocr_price(img, new_coords[model])
-                today_prices[model] = price
-                if price:
+                lo, hi = model_range.get(model, (0, 999999))
+                if price and lo <= price <= hi:
+                    today_prices[model] = price
                     coords[model] = new_coords[model]
                     print(f"   ✅ 自動校準後辨識成功：{model} = ${price:,}")
                 else:
-                    print(f"   ❌ {model} 自動校準後仍失敗")
+                    if price:
+                        print(f"   ❌ {model} 自動校準後讀到 ${price:,}，超出合理範圍 ${lo:,}~${hi:,}，拒絕")
+                    else:
+                        print(f"   ❌ {model} 自動校準後仍失敗")
 
         # 將更新後的座標存回 coords.json
         save_coords(coords)
