@@ -73,17 +73,17 @@ DASHBOARD_HTML = BASE_DIR / "index.html"
 MODELS_DEF = [
     {
         "name":  "iPhone 17 256G 黑/藍/白/紫/綠",
-        "range": (20000, 32000),
+        "range": (18000, 34000),
         "default_coords": (873, 1107, 966, 1143),
     },
     {
         "name":  "iPhone 17 Pro 256G",
-        "range": (32000, 42000),
-        "default_coords": (873, 1350, 966, 1386),
+        "range": (32000, 46000),
+        "default_coords": (873, 1320, 966, 1356),
     },
     {
         "name":  "iPhone 17 Pro Max 256G 銀/橘",
-        "range": (38000, 55000),
+        "range": (38000, 60000),
         "default_coords": (873, 1517, 966, 1552),
     },
 ]
