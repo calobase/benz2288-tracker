@@ -102,11 +102,13 @@ def save_coords(coords: dict):
         encoding="utf-8"
     )
 
-def auto_scan_coords(img: Image.Image) -> dict:
-    """掃描整個現金價欄位，自動比對各機型的 y 座標"""
+def auto_scan_coords(img: Image.Image, current_coords: dict | None = None) -> dict:
+    """掃描整個現金價欄位，自動比對各機型的 y 座標。
+    current_coords: 目前已知座標，用於在同一價格區間有多個 row 時，優先選最接近的那個。
+    """
     print("🔍 自動掃描座標中...")
     hits = []
-    for y1 in range(800, 2600, 4):
+    for y1 in range(800, img.size[1] - 36, 4):
         price = ocr_price(img, (873, y1, 966, y1 + 36))
         if price:
             hits.append((y1 + 18, price))
@@ -121,21 +123,29 @@ def auto_scan_coords(img: Image.Image) -> dict:
 
     print(f"   找到 {len(clusters)} 個價格行")
 
-    # 依機型定義順序，逐一從剩餘 clusters 中挑選符合價格區間的第一個
     new_coords = {}
     used = set()
     for m in MODELS_DEF:
         lo, hi = m["range"]
-        for i, (y_center, price) in enumerate(clusters):
-            if i not in used and lo <= price <= hi:
-                y1 = y_center - 18
-                y2 = y_center + 18
-                new_coords[m["name"]] = (873, y1, 966, y2)
-                used.add(i)
-                print(f"   ✅ {m['name']} → y={y1}~{y2}  ${price:,}")
-                break
-        else:
+        candidates = [(i, y, p) for i, (y, p) in enumerate(clusters)
+                      if i not in used and lo <= p <= hi]
+        if not candidates:
             print(f"   ❌ {m['name']} → 未找到符合的行（區間 ${lo:,}~${hi:,}）")
+            continue
+
+        # 若有上次已知座標，優先選最接近的 cluster；否則選最靠上的
+        if current_coords and m["name"] in current_coords:
+            known_y = (current_coords[m["name"]][1] + current_coords[m["name"]][3]) // 2
+            best = min(candidates, key=lambda c: abs(c[1] - known_y))
+        else:
+            best = candidates[0]
+
+        i, y_center, price = best
+        y1 = y_center - 18
+        y2 = y_center + 18
+        new_coords[m["name"]] = (873, y1, 966, y2)
+        used.add(i)
+        print(f"   ✅ {m['name']} → y={y1}~{y2}  ${price:,}")
 
     return new_coords
 
@@ -569,46 +579,43 @@ def main():
         calibrate(img, coords)
         return
 
-    # OCR（先用快取座標，失敗則自動重新掃描）
+    # 每次都先跑 auto_scan（傳入快取座標讓它優先選最近的 row）
+    # 掃不到的機型 fallback 用快取座標
+    model_range = {m["name"]: m["range"] for m in MODELS_DEF}
+    scanned_coords = auto_scan_coords(img, current_coords=coords)
+
+    final_coords = {}
+    for model in coords:
+        if model in scanned_coords:
+            final_coords[model] = scanned_coords[model]
+        else:
+            final_coords[model] = coords[model]
+            print(f"   ⚠️  {model} 掃描未找到，使用快取座標")
+
+    save_coords(final_coords)
+
     print("\n💰 OCR 辨識現金價：")
     today_prices = {}
-    for model, box in coords.items():
+    for model, box in final_coords.items():
         price = ocr_price(img, box)
-        today_prices[model] = price
-        print(f"   {model}: {'$'+f'{price:,}' if price else '⚠️  辨識失敗，嘗試自動校準...'}")
+        lo, hi = model_range.get(model, (0, 999999))
+        if price and lo <= price <= hi:
+            today_prices[model] = price
+            print(f"   {model}: ${price:,}")
+        else:
+            if price:
+                print(f"   {model}: ⚠️  讀到 ${price:,} 超出合理範圍，視為失敗")
+            else:
+                print(f"   {model}: ⚠️  辨識失敗")
+            today_prices[model] = None
 
-    # 每次都儲存座標（確保 coords.json 存在且為最新）
-    save_coords(coords)
-
-    failed = [m for m, p in today_prices.items() if not p]
-    if failed:
-        new_coords = auto_scan_coords(img)
-        # 建立 name→range 查找表
-        model_range = {m["name"]: m["range"] for m in MODELS_DEF}
-        for model in failed:
-            if model in new_coords:
-                price = ocr_price(img, new_coords[model])
-                lo, hi = model_range.get(model, (0, 999999))
-                if price and lo <= price <= hi:
-                    today_prices[model] = price
-                    coords[model] = new_coords[model]
-                    print(f"   ✅ 自動校準後辨識成功：{model} = ${price:,}")
-                else:
-                    if price:
-                        print(f"   ❌ {model} 自動校準後讀到 ${price:,}，超出合理範圍 ${lo:,}~${hi:,}，拒絕")
-                    else:
-                        print(f"   ❌ {model} 自動校準後仍失敗")
-
-        # 將更新後的座標存回 coords.json
-        save_coords(coords)
-
-        still_failed = [m for m, p in today_prices.items() if not p]
-        if still_failed:
-            send_error_email(
-                "OCR 自動校準後仍失敗，需要人工介入",
-                "失敗機型：\n" + "\n".join(f"  - {m}" for m in still_failed) +
-                f"\n\nGIF 尺寸：{img.size[0]}×{img.size[1]} px"
-            )
+    still_failed = [m for m, p in today_prices.items() if not p]
+    if still_failed:
+        send_error_email(
+            "OCR 辨識失敗，需要人工介入",
+            "失敗機型：\n" + "\n".join(f"  - {m}" for m in still_failed) +
+            f"\n\nGIF 尺寸：{img.size[0]}×{img.size[1]} px"
+        )
 
     # 儲存
     date_str = gif_date.isoformat()
