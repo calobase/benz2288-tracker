@@ -102,50 +102,50 @@ def save_coords(coords: dict):
         encoding="utf-8"
     )
 
+SCAN_RADIUS = 150  # 只掃描已知座標 ±150px，避免抓到遠處的干擾行
+
 def auto_scan_coords(img: Image.Image, current_coords: dict | None = None) -> dict:
-    """掃描整個現金價欄位，自動比對各機型的 y 座標。
-    current_coords: 目前已知座標，用於在同一價格區間有多個 row 時，優先選最接近的那個。
-    """
+    """針對每個機型，只在已知 y ±150px 範圍內掃描，自動修正小幅漂移。"""
     print("🔍 自動掃描座標中...")
-    hits = []
-    for y1 in range(800, img.size[1] - 36, 4):
-        price = ocr_price(img, (873, y1, 966, y1 + 36))
-        if price:
-            hits.append((y1 + 18, price))
-
-    # 合併鄰近命中（±25px 視為同一行）
-    clusters = []
-    for y, price in hits:
-        if clusters and y - clusters[-1][0] < 25:
-            clusters[-1] = ((y + clusters[-1][0]) // 2, price)
-        else:
-            clusters.append((y, price))
-
-    print(f"   找到 {len(clusters)} 個價格行")
-
     new_coords = {}
-    used = set()
+
     for m in MODELS_DEF:
         lo, hi = m["range"]
-        candidates = [(i, y, p) for i, (y, p) in enumerate(clusters)
-                      if i not in used and lo <= p <= hi]
-        if not candidates:
-            print(f"   ❌ {m['name']} → 未找到符合的行（區間 ${lo:,}~${hi:,}）")
+        name = m["name"]
+
+        # 決定掃描範圍
+        if current_coords and name in current_coords:
+            known_y = (current_coords[name][1] + current_coords[name][3]) // 2
+        else:
+            known_y = (m["default_coords"][1] + m["default_coords"][3]) // 2
+        y_start = max(500, known_y - SCAN_RADIUS)
+        y_end   = min(img.size[1] - 36, known_y + SCAN_RADIUS)
+
+        # 掃描
+        hits = []
+        for y1 in range(y_start, y_end, 4):
+            price = ocr_price(img, (873, y1, 966, y1 + 36))
+            if price and lo <= price <= hi:
+                hits.append((y1 + 18, price))
+
+        if not hits:
+            print(f"   ❌ {name} → ±{SCAN_RADIUS}px 範圍內未找到符合的行")
             continue
 
-        # 若有上次已知座標，優先選最接近的 cluster；否則選最靠上的
-        if current_coords and m["name"] in current_coords:
-            known_y = (current_coords[m["name"]][1] + current_coords[m["name"]][3]) // 2
-            best = min(candidates, key=lambda c: abs(c[1] - known_y))
-        else:
-            best = candidates[0]
+        # 合併鄰近命中
+        clusters = []
+        for y, price in hits:
+            if clusters and y - clusters[-1][0] < 25:
+                clusters[-1] = ((y + clusters[-1][0]) // 2, price)
+            else:
+                clusters.append((y, price))
 
-        i, y_center, price = best
-        y1 = y_center - 18
-        y2 = y_center + 18
-        new_coords[m["name"]] = (873, y1, 966, y2)
-        used.add(i)
-        print(f"   ✅ {m['name']} → y={y1}~{y2}  ${price:,}")
+        # 選最靠近已知位置的 cluster
+        best_y, best_p = min(clusters, key=lambda c: abs(c[0] - known_y))
+        y1 = best_y - 18
+        y2 = best_y + 18
+        new_coords[name] = (873, y1, 966, y2)
+        print(f"   ✅ {name} → y={y1}~{y2}  ${best_p:,}")
 
     return new_coords
 
