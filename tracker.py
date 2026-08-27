@@ -223,17 +223,22 @@ def download_image(url: str) -> Image.Image:
 
 def ocr_price(img: Image.Image, box: tuple, scale: int = 4) -> int | None:
     pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
-    cropped = img.crop(box)
-    w, h = cropped.size
-    cropped = cropped.resize((w * scale, h * scale), Image.LANCZOS)
-    cropped = cropped.convert("L")
-    cropped = ImageEnhance.Contrast(cropped).enhance(2.5)
-    text = pytesseract.image_to_string(
-        cropped,
-        config="--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789,"
-    ).strip()
-    m = re.search(r"(\d[\d,]{3,})", text)
-    return int(m.group(1).replace(",", "")) if m else None
+    try:
+        cropped = img.crop(box)
+        w, h = cropped.size
+        if w < 3 or h < 3:
+            return None
+        cropped = cropped.resize((w * scale, h * scale), Image.LANCZOS)
+        cropped = cropped.convert("L")
+        cropped = ImageEnhance.Contrast(cropped).enhance(2.5)
+        text = pytesseract.image_to_string(
+            cropped,
+            config="--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789,"
+        ).strip()
+        m = re.search(r"(\d[\d,]{3,})", text)
+        return int(m.group(1).replace(",", "")) if m else None
+    except Exception:
+        return None
 
 
 def calibrate(img: Image.Image, coords: dict):
