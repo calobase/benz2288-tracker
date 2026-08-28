@@ -105,9 +105,11 @@ def save_coords(coords: dict):
 SCAN_RADIUS = 150  # 只掃描已知座標 ±150px，避免抓到遠處的干擾行
 
 def auto_scan_coords(img: Image.Image, current_coords: dict | None = None) -> dict:
-    """針對每個機型，只在已知 y ±150px 範圍內掃描，自動修正小幅漂移。"""
+    """針對每個機型，只在已知 y ±150px 範圍內掃描，自動修正小幅漂移。
+    回傳 {model_name: (coords_tuple, price)} — price 直接來自掃描，避免重複 OCR 的不一致。
+    """
     print("🔍 自動掃描座標中...")
-    new_coords = {}
+    results = {}  # name → (coords, price)
 
     for m in MODELS_DEF:
         lo, hi = m["range"]
@@ -140,14 +142,13 @@ def auto_scan_coords(img: Image.Image, current_coords: dict | None = None) -> di
             else:
                 clusters.append((y, price))
 
-        # 選最靠近已知位置的 cluster
+        # 選最靠近已知位置的 cluster，直接保留掃描到的價格
         best_y, best_p = min(clusters, key=lambda c: abs(c[0] - known_y))
-        y1 = best_y - 18
-        y2 = best_y + 18
-        new_coords[name] = (873, y1, 966, y2)
-        print(f"   ✅ {name} → y={y1}~{y2}  ${best_p:,}")
+        coord = (873, best_y - 18, 966, best_y + 18)
+        results[name] = (coord, best_p)
+        print(f"   ✅ {name} → y={best_y-18}~{best_y+18}  ${best_p:,}")
 
-    return new_coords
+    return results
 
 CHART_COLORS = ["#f87171", "#60a5fa", "#fbbf24", "#34d399", "#a78bfa"]
 
@@ -585,34 +586,34 @@ def main():
         return
 
     # 每次都先跑 auto_scan（傳入快取座標讓它優先選最近的 row）
-    # 掃不到的機型 fallback 用快取座標
+    # scan 直接回傳 (coords, price)，避免重複 OCR 的不一致
+    # 掃不到的機型 fallback 用快取座標重新 OCR
     model_range = {m["name"]: m["range"] for m in MODELS_DEF}
-    scanned_coords = auto_scan_coords(img, current_coords=coords)
+    scan_results = auto_scan_coords(img, current_coords=coords)  # {name: (coord, price)}
 
     final_coords = {}
-    for model in coords:
-        if model in scanned_coords:
-            final_coords[model] = scanned_coords[model]
-        else:
-            final_coords[model] = coords[model]
-            print(f"   ⚠️  {model} 掃描未找到，使用快取座標")
-
-    save_coords(final_coords)
-
     print("\n💰 OCR 辨識現金價：")
     today_prices = {}
-    for model, box in final_coords.items():
-        price = ocr_price(img, box)
+    for model in coords:
         lo, hi = model_range.get(model, (0, 999999))
-        if price and lo <= price <= hi:
+        if model in scan_results:
+            coord, price = scan_results[model]
+            final_coords[model] = coord
             today_prices[model] = price
             print(f"   {model}: ${price:,}")
         else:
-            if price:
-                print(f"   {model}: ⚠️  讀到 ${price:,} 超出合理範圍，視為失敗")
+            # fallback：用快取座標重新 OCR
+            final_coords[model] = coords[model]
+            print(f"   ⚠️  {model} 掃描未找到，使用快取座標")
+            price = ocr_price(img, coords[model])
+            if price and lo <= price <= hi:
+                today_prices[model] = price
+                print(f"   {model}: ${price:,}")
             else:
+                today_prices[model] = None
                 print(f"   {model}: ⚠️  辨識失敗")
-            today_prices[model] = None
+
+    save_coords(final_coords)
 
     still_failed = [m for m, p in today_prices.items() if not p]
     if still_failed:
