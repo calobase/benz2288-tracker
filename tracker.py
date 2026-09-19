@@ -71,10 +71,10 @@ DASHBOARD_HTML = BASE_DIR / "index.html"
 # ══════════════════════════════════════════════════════
 
 MODELS_DEF = [
-    {"name": "iPhone 18 Pro 256G 紅",     "range": (38000, 47500), "default_coords": (873, 1573, 966, 1609), "scan_radius": 25},
-    {"name": "iPhone 18 Pro 256G 銀",     "range": (38000, 47500), "default_coords": (873, 1605, 966, 1641), "scan_radius": 25},
-    {"name": "iPhone 18 Pro 256G 黑",     "range": (38000, 47500), "default_coords": (873, 1637, 966, 1673), "scan_radius": 25},
-    {"name": "iPhone 18 Pro 256G 藍",     "range": (38000, 47500), "default_coords": (873, 1668, 966, 1704), "scan_radius": 25},
+    {"name": "iPhone 18 Pro 256G 紅",     "range": (38000, 47500), "default_coords": (873, 1573, 966, 1609), "scan_radius": 80, "strict_radius": 25},
+    {"name": "iPhone 18 Pro 256G 銀",     "range": (38000, 47500), "default_coords": (873, 1605, 966, 1641), "scan_radius": 80, "strict_radius": 25},
+    {"name": "iPhone 18 Pro 256G 黑",     "range": (38000, 47500), "default_coords": (873, 1637, 966, 1673), "scan_radius": 80, "strict_radius": 25},
+    {"name": "iPhone 18 Pro 256G 藍",     "range": (38000, 47500), "default_coords": (873, 1668, 966, 1704), "scan_radius": 80, "strict_radius": 25},
     {"name": "iPhone 18 Pro Max 256G 銀", "range": (45000, 65000), "default_coords": (873, 1825, 966, 1861)},
     {"name": "iPhone 18 Pro Max 256G 黑", "range": (45000, 65000), "default_coords": (873, 1825, 966, 1861)},
     {"name": "iPhone 18 Pro Max 256G 紅", "range": (45000, 65000), "default_coords": (873, 1860, 966, 1896)},
@@ -109,6 +109,8 @@ def auto_scan_coords(img: Image.Image, current_coords: dict | None = None) -> di
         name = m["name"]
 
         # 決定掃描範圍
+        strict = m.get("strict_radius")
+        # strict 模型以 current_coords 為錨點（記錄上次成功位置），否則用 default
         if current_coords and name in current_coords:
             known_y = (current_coords[name][1] + current_coords[name][3]) // 2
         else:
@@ -138,6 +140,10 @@ def auto_scan_coords(img: Image.Image, current_coords: dict | None = None) -> di
 
         # 選最靠近已知位置的 cluster，直接保留掃描到的價格
         best_y, best_p = min(clusters, key=lambda c: abs(c[0] - known_y))
+        # strict 模型：若最近命中距錨點超過 strict_radius，視為鄰行干擾，拒絕
+        if strict and abs(best_y - known_y) > strict:
+            print(f"   ❌ {name} → 最近命中 y={best_y} 距錨點 {abs(best_y-known_y)}px > {strict}px，丟棄")
+            continue
         coord = (873, best_y - 18, 966, best_y + 18)
         results[name] = (coord, best_p)
         print(f"   ✅ {name} → y={best_y-18}~{best_y+18}  ${best_p:,}")
@@ -624,7 +630,11 @@ def main():
             today_prices[model] = price
             print(f"   {model}: ${price:,}")
         else:
-            final_coords[model] = coords.get(model, m["default_coords"])
+            # strict 模型掃描失敗：重置為 default 避免錯誤座標累積
+            if m.get("strict_radius"):
+                final_coords[model] = m["default_coords"]
+            else:
+                final_coords[model] = coords.get(model, m["default_coords"])
             print(f"   ⚠️  {model} 掃描未找到，使用快取座標")
             price = ocr_price(img, final_coords[model])
             if price and lo <= price <= hi:
