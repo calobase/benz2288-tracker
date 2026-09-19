@@ -71,21 +71,14 @@ DASHBOARD_HTML = BASE_DIR / "index.html"
 # ══════════════════════════════════════════════════════
 
 MODELS_DEF = [
-    {
-        "name":  "iPhone 17 256G 黑/藍/白/紫/綠",
-        "range": (24000, 34000),
-        "default_coords": (873, 1107, 966, 1143),
-    },
-    {
-        "name":  "iPhone 17 Pro 256G",
-        "range": (32000, 46000),
-        "default_coords": (873, 1320, 966, 1356),
-    },
-    {
-        "name":  "iPhone 17 Pro Max 256G 銀/橘",
-        "range": (38000, 60000),
-        "default_coords": (873, 1517, 966, 1552),
-    },
+    {"name": "iPhone 18 Pro 256G 紅",     "range": (38000, 47500), "default_coords": (873, 1573, 966, 1609), "scan_radius": 25},
+    {"name": "iPhone 18 Pro 256G 銀",     "range": (38000, 47500), "default_coords": (873, 1605, 966, 1641), "scan_radius": 25},
+    {"name": "iPhone 18 Pro 256G 黑",     "range": (38000, 47500), "default_coords": (873, 1637, 966, 1673), "scan_radius": 25},
+    {"name": "iPhone 18 Pro 256G 藍",     "range": (38000, 47500), "default_coords": (873, 1668, 966, 1704), "scan_radius": 25},
+    {"name": "iPhone 18 Pro Max 256G 銀", "range": (45000, 65000), "default_coords": (873, 1825, 966, 1861)},
+    {"name": "iPhone 18 Pro Max 256G 黑", "range": (45000, 65000), "default_coords": (873, 1825, 966, 1861)},
+    {"name": "iPhone 18 Pro Max 256G 紅", "range": (45000, 65000), "default_coords": (873, 1860, 966, 1896)},
+    {"name": "iPhone 18 Pro Max 256G 藍", "range": (45000, 65000), "default_coords": (873, 1895, 966, 1931)},
 ]
 
 COORDS_JSON = BASE_DIR / "coords.json"
@@ -120,8 +113,9 @@ def auto_scan_coords(img: Image.Image, current_coords: dict | None = None) -> di
             known_y = (current_coords[name][1] + current_coords[name][3]) // 2
         else:
             known_y = (m["default_coords"][1] + m["default_coords"][3]) // 2
-        y_start = max(500, known_y - SCAN_RADIUS)
-        y_end   = min(img.size[1] - 36, known_y + SCAN_RADIUS)
+        radius = m.get("scan_radius", SCAN_RADIUS)
+        y_start = max(500, known_y - radius)
+        y_end   = min(img.size[1] - 36, known_y + radius)
 
         # 掃描
         hits = []
@@ -150,7 +144,28 @@ def auto_scan_coords(img: Image.Image, current_coords: dict | None = None) -> di
 
     return results
 
-CHART_COLORS = ["#f87171", "#60a5fa", "#fbbf24", "#34d399", "#a78bfa"]
+COLOR_META = {
+    "紅": {"hex": "#ef4444", "dot": "background:#ef4444"},
+    "銀": {"hex": "#d1d5db", "dot": "background:#d1d5db;border:1px solid #9ca3af"},
+    "黑": {"hex": "#6b7280", "dot": "background:#1f2937;border:1px solid #6b7280"},
+    "藍": {"hex": "#60a5fa", "dot": "background:#60a5fa"},
+}
+CHART_COLORS = [v["hex"] for v in COLOR_META.values()]  # 紅銀黑藍
+
+MODEL_GROUPS = [
+    ("iPhone 18 Pro 256G", [
+        "iPhone 18 Pro 256G 紅",
+        "iPhone 18 Pro 256G 銀",
+        "iPhone 18 Pro 256G 黑",
+        "iPhone 18 Pro 256G 藍",
+    ]),
+    ("iPhone 18 Pro Max 256G", [
+        "iPhone 18 Pro Max 256G 銀",
+        "iPhone 18 Pro Max 256G 黑",
+        "iPhone 18 Pro Max 256G 紅",
+        "iPhone 18 Pro Max 256G 藍",
+    ]),
+]
 
 # ══════════════════════════════════════════════════════
 #  🌐 GIF 下載（從網站首頁解析真實連結）
@@ -340,7 +355,7 @@ def send_error_email(subject: str, detail: str):
     </body></html>"""
     try:
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"❌ iPhone 17 追蹤器失敗 - {datetime.now():%m/%d %H:%M}"
+        msg["Subject"] = f"❌ iPhone 18 追蹤器失敗 - {datetime.now():%m/%d %H:%M}"
         msg["From"]    = GMAIL_USER
         msg["To"]      = NOTIFY_TO
         msg.attach(MIMEText(body, "html", "utf-8"))
@@ -356,31 +371,26 @@ def send_error_email(subject: str, detail: str):
 #  靜態 HTML，可直接部署到 Cloudflare Pages / GitHub Pages
 # ══════════════════════════════════════════════════════
 
-CHART_GROUPS = [
-    ("iPhone 17", ["iPhone 17 256G 黑/藍/白/紫/綠"]),
-    ("iPhone 17 Pro", ["iPhone 17 Pro 256G"]),
-    ("iPhone 17 Pro Max", ["iPhone 17 Pro Max 256G 銀/橘"]),
-]
-
 def _y_range(all_data: dict, models: list) -> tuple:
     vals = [all_data[d][m] for d in all_data for m in models
             if m in all_data[d] and all_data[d][m] is not None]
     if not vals:
-        return 20000, 50000
+        return 30000, 70000
     lo, hi = min(vals), max(vals)
-    margin = max((hi - lo) * 1.5, 500)
+    margin = max((hi - lo) * 1.5, 1000)
     return int(lo - margin), int(hi + margin)
 
-def _chart_json(all_data: dict, dates: list, models: list, color_offset: int) -> str:
+def _chart_json(all_data: dict, dates: list, models: list) -> str:
     labels = [d[5:] for d in dates]
     datasets = []
-    for i, model in enumerate(models):
-        color = CHART_COLORS[(color_offset + i) % len(CHART_COLORS)]
+    for model in models:
+        color_key = model.split()[-1]
+        color = COLOR_META.get(color_key, {}).get("hex", "#8b949e")
         datasets.append({
-            "label": model,
+            "label": color_key,
             "data": [all_data[d].get(model) for d in dates],
             "borderColor": color,
-            "backgroundColor": color + "22",
+            "backgroundColor": color + "33",
             "tension": 0.3,
             "fill": False,
             "pointRadius": 5,
@@ -391,8 +401,6 @@ def _chart_json(all_data: dict, dates: list, models: list, color_offset: int) ->
 
 def generate_dashboard(all_data: dict):
     dates = sorted(all_data.keys())
-    model_names = [m["name"] for m in MODELS_DEF]
-
     latest_date = dates[-1] if dates else "N/A"
     prev_date   = dates[-2] if len(dates) >= 2 else None
     latest = all_data.get(latest_date, {})
@@ -410,23 +418,27 @@ def generate_dashboard(all_data: dict):
             return f'<td class="diff-down">{d:,}</td>'
         return '<td class="diff-none">—</td>'
 
-    today_rows = "".join(
-        f"""<tr>
-          <td class="model-name">{model}</td>
-          <td class="model-price">{"$" + f"{latest[model]:,}" if latest.get(model) else "—"}</td>
-          {diff_cell(model)}
-        </tr>"""
-        for model in model_names
-    )
+    # 按機型分組，顏色各一行
+    today_rows = ""
+    for group_name, models in MODEL_GROUPS:
+        today_rows += f'<tr class="group-header"><td colspan="3">{group_name}</td></tr>\n'
+        for model in models:
+            color_key = model.split()[-1]
+            meta = COLOR_META.get(color_key, {"dot": "background:#888"})
+            price = latest.get(model)
+            price_str = f"${price:,}" if price else "—"
+            today_rows += f"""<tr>
+              <td><span class="color-dot" style="{meta['dot']}"></span>{color_key}</td>
+              <td class="model-price">{price_str}</td>
+              {diff_cell(model)}
+            </tr>\n"""
 
-    # 為每個圖表群組產生 JSON 與 y 軸範圍
-    color_offset = 0
+    # 圖表
     chart_blocks = []
-    for group_name, group_models in CHART_GROUPS:
-        cj = _chart_json(all_data, dates, group_models, color_offset)
+    for group_name, group_models in MODEL_GROUPS:
+        cj = _chart_json(all_data, dates, group_models)
         y_min, y_max = _y_range(all_data, group_models)
         chart_blocks.append((group_name, cj, y_min, y_max))
-        color_offset += len(group_models)
 
     def chart_script(idx, cj, y_min, y_max):
         return f"""
@@ -476,7 +488,7 @@ new Chart(document.getElementById("chart{idx}"), {{
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>benz2288 iPhone 17 價格追蹤</title>
+  <title>benz2288 iPhone 18 價格追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0 }}
@@ -505,20 +517,30 @@ new Chart(document.getElementById("chart{idx}"), {{
       font-weight: 400; text-transform: none; letter-spacing: 0;
     }}
 
-    .chart-wrap {{ position: relative; height: 260px }}
+    .chart-wrap {{ position: relative; height: 280px }}
 
     table {{ width: 100%; border-collapse: collapse; font-size: 14px }}
-    th, td {{ padding: 11px 14px; border-bottom: 1px solid #21262d }}
+    th, td {{ padding: 10px 14px; border-bottom: 1px solid #21262d }}
     th {{ font-size: 11px; font-weight: 600; color: #6e7681;
           text-transform: uppercase; letter-spacing: .06em }}
+    tr.group-header td {{
+      font-size: 12px; font-weight: 700; color: #8b949e;
+      background: #0d1117; padding: 10px 14px 6px; border-bottom: none;
+      text-transform: uppercase; letter-spacing: .05em;
+    }}
     tr:last-child td {{ border-bottom: none }}
-    tr:hover td {{ background: #1c2128 }}
-    td.model-name  {{ color: #c9d1d9 }}
+    tr:not(.group-header):hover td {{ background: #1c2128 }}
+    td {{ color: #c9d1d9 }}
     td.model-price {{ text-align: right; font-weight: 700;
-                      color: #f87171; font-size: 16px; font-variant-numeric: tabular-nums }}
+                      color: #f0f6fc; font-size: 16px; font-variant-numeric: tabular-nums }}
     td.diff-up   {{ text-align: right; font-weight: 600; color: #f87171; font-variant-numeric: tabular-nums }}
     td.diff-down {{ text-align: right; font-weight: 600; color: #3fb950; font-variant-numeric: tabular-nums }}
     td.diff-none {{ text-align: right; color: #484f58 }}
+
+    .color-dot {{
+      display: inline-block; width: 10px; height: 10px;
+      border-radius: 50%; margin-right: 8px; vertical-align: middle;
+    }}
 
     footer {{ text-align: right; font-size: 11px; color: #484f58; margin-top: 12px }}
     a {{ color: #58a6ff; text-decoration: none }}
@@ -528,14 +550,14 @@ new Chart(document.getElementById("chart{idx}"), {{
 <body>
 <div class="wrap">
   <header>
-    <h1>📱 benz2288 iPhone 17 現金價追蹤</h1>
+    <h1>📱 benz2288 iPhone 18 現金價追蹤</h1>
     <p>每日自動抓取 · 資料來源 <a href="https://www.benz2288.com.tw" target="_blank">benz2288.com.tw</a></p>
   </header>
 
   <div class="card">
     <div class="card-label">最新報價 <span class="badge">{latest_date}</span></div>
     <table>
-      <tr><th>機型</th><th style="text-align:right">現金價</th><th style="text-align:right">與前日</th></tr>
+      <tr><th>顏色</th><th style="text-align:right">現金價</th><th style="text-align:right">與前日</th></tr>
       {today_rows}
     </table>
   </div>
@@ -563,7 +585,7 @@ def main():
     dry_run      = "--dry-run"   in sys.argv
 
     print("=" * 54)
-    print(f"  benz2288 iPhone 17 價格追蹤器")
+    print(f"  benz2288 iPhone 18 價格追蹤器")
     print(f"  {datetime.now():%Y-%m-%d %H:%M:%S}")
     print("=" * 54)
 
@@ -588,24 +610,23 @@ def main():
     # 每次都先跑 auto_scan（傳入快取座標讓它優先選最近的 row）
     # scan 直接回傳 (coords, price)，避免重複 OCR 的不一致
     # 掃不到的機型 fallback 用快取座標重新 OCR
-    model_range = {m["name"]: m["range"] for m in MODELS_DEF}
     scan_results = auto_scan_coords(img, current_coords=coords)  # {name: (coord, price)}
 
     final_coords = {}
     print("\n💰 OCR 辨識現金價：")
     today_prices = {}
-    for model in coords:
-        lo, hi = model_range.get(model, (0, 999999))
+    for m in MODELS_DEF:
+        model = m["name"]
+        lo, hi = m["range"]
         if model in scan_results:
             coord, price = scan_results[model]
             final_coords[model] = coord
             today_prices[model] = price
             print(f"   {model}: ${price:,}")
         else:
-            # fallback：用快取座標重新 OCR
-            final_coords[model] = coords[model]
+            final_coords[model] = coords.get(model, m["default_coords"])
             print(f"   ⚠️  {model} 掃描未找到，使用快取座標")
-            price = ocr_price(img, coords[model])
+            price = ocr_price(img, final_coords[model])
             if price and lo <= price <= hi:
                 today_prices[model] = price
                 print(f"   {model}: ${price:,}")
