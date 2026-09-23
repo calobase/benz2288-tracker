@@ -75,10 +75,12 @@ MODELS_DEF = [
     {"name": "iPhone 18 Pro 256G 銀",     "range": (38000, 47500), "default_coords": (873, 1605, 966, 1641), "scan_radius": 80, "strict_radius": 25},
     {"name": "iPhone 18 Pro 256G 黑",     "range": (38000, 47500), "default_coords": (873, 1637, 966, 1673), "scan_radius": 80, "strict_radius": 25},
     {"name": "iPhone 18 Pro 256G 藍",     "range": (38000, 47500), "default_coords": (873, 1668, 966, 1704), "scan_radius": 80, "strict_radius": 25},
-    {"name": "iPhone 18 Pro Max 256G 銀", "range": (45000, 65000), "default_coords": (873, 1825, 966, 1861)},
-    {"name": "iPhone 18 Pro Max 256G 黑", "range": (45000, 65000), "default_coords": (873, 1825, 966, 1861)},
-    {"name": "iPhone 18 Pro Max 256G 紅", "range": (45000, 65000), "default_coords": (873, 1860, 966, 1896)},
-    {"name": "iPhone 18 Pro Max 256G 藍", "range": (45000, 65000), "default_coords": (873, 1895, 966, 1931)},
+    # ProMax 256G 全列為灰字（無庫存），OCR 常失敗 → 依賴 carry-forward
+    # strict_radius=40 防止 scan 飄進上方 512G 區段（紅字 $51000/$65500）
+    {"name": "iPhone 18 Pro Max 256G 銀", "range": (45000, 58000), "default_coords": (873, 1840, 966, 1876), "scan_radius": 60, "strict_radius": 40},
+    {"name": "iPhone 18 Pro Max 256G 黑", "range": (45000, 58000), "default_coords": (873, 1840, 966, 1876), "scan_radius": 60, "strict_radius": 40},
+    {"name": "iPhone 18 Pro Max 256G 紅", "range": (45000, 58000), "default_coords": (873, 1875, 966, 1911), "scan_radius": 60, "strict_radius": 40},
+    {"name": "iPhone 18 Pro Max 256G 藍", "range": (45000, 58000), "default_coords": (873, 1905, 966, 1941), "scan_radius": 60, "strict_radius": 40},
 ]
 
 COORDS_JSON = BASE_DIR / "coords.json"
@@ -646,6 +648,19 @@ def main():
 
     save_coords(final_coords)
 
+    # 儲存
+    date_str = gif_date.isoformat()
+    all_data = load_prices()
+    prev_date = max((d for d in all_data if d < date_str), default=None)
+    prev = all_data.get(prev_date, {}) if prev_date else {}
+
+    # carry-forward：灰字行 OCR 失敗時沿用前一天價格，避免顯示空值
+    print("\n🔄 Carry-forward 檢查：")
+    for model in list(today_prices):
+        if today_prices[model] is None and prev.get(model):
+            today_prices[model] = prev[model]
+            print(f"   {model}: 沿用前日 ${prev[model]:,}")
+
     still_failed = [m for m, p in today_prices.items() if not p]
     if still_failed:
         send_error_email(
@@ -653,12 +668,6 @@ def main():
             "失敗機型：\n" + "\n".join(f"  - {m}" for m in still_failed) +
             f"\n\nGIF 尺寸：{img.size[0]}×{img.size[1]} px"
         )
-
-    # 儲存
-    date_str = gif_date.isoformat()
-    all_data = load_prices()
-    prev_date = max((d for d in all_data if d < date_str), default=None)
-    prev = all_data.get(prev_date, {}) if prev_date else {}
 
     all_data[date_str] = today_prices
     save_prices(all_data)
