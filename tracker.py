@@ -75,12 +75,12 @@ MODELS_DEF = [
     {"name": "iPhone 18 Pro 256G 銀",     "range": (38000, 47500), "default_coords": (873, 1605, 966, 1641), "scan_radius": 80, "strict_radius": 25},
     {"name": "iPhone 18 Pro 256G 黑",     "range": (38000, 47500), "default_coords": (873, 1637, 966, 1673), "scan_radius": 80, "strict_radius": 25},
     {"name": "iPhone 18 Pro 256G 藍",     "range": (38000, 47500), "default_coords": (873, 1668, 966, 1704), "scan_radius": 80, "strict_radius": 25},
-    # ProMax 256G 全列為灰字（無庫存），OCR 常失敗 → 依賴 carry-forward
-    # strict_radius=40 防止 scan 飄進上方 512G 區段（紅字 $51000/$65500）
-    {"name": "iPhone 18 Pro Max 256G 銀", "range": (45000, 58000), "default_coords": (873, 1840, 966, 1876), "scan_radius": 60, "strict_radius": 40},
-    {"name": "iPhone 18 Pro Max 256G 黑", "range": (45000, 58000), "default_coords": (873, 1840, 966, 1876), "scan_radius": 60, "strict_radius": 40},
-    {"name": "iPhone 18 Pro Max 256G 紅", "range": (45000, 58000), "default_coords": (873, 1875, 966, 1911), "scan_radius": 60, "strict_radius": 40},
-    {"name": "iPhone 18 Pro Max 256G 藍", "range": (45000, 58000), "default_coords": (873, 1905, 966, 1941), "scan_radius": 60, "strict_radius": 40},
+    # ProMax 256G：紅（紅字在庫）是黑框線下第一列，銀/黑/藍（灰字）在其下方
+    # 行距約 36px；strict_radius=20 防止相鄰行互搶 + 防飄進上方 512G 區段
+    {"name": "iPhone 18 Pro Max 256G 紅", "range": (45000, 58000), "default_coords": (873, 1916, 966, 1952), "scan_radius": 60, "strict_radius": 20},
+    {"name": "iPhone 18 Pro Max 256G 銀", "range": (45000, 58000), "default_coords": (873, 1952, 966, 1988), "scan_radius": 60, "strict_radius": 20},
+    {"name": "iPhone 18 Pro Max 256G 黑", "range": (45000, 58000), "default_coords": (873, 1952, 966, 1988), "scan_radius": 60, "strict_radius": 20},
+    {"name": "iPhone 18 Pro Max 256G 藍", "range": (45000, 58000), "default_coords": (873, 1988, 966, 2024), "scan_radius": 60, "strict_radius": 20},
 ]
 
 COORDS_JSON = BASE_DIR / "coords.json"

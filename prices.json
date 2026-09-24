@@ -603,8 +603,8 @@
     "iPhone 18 Pro 256G 藍": 44500,
     "iPhone 18 Pro Max 256G 銀": 50900,
     "iPhone 18 Pro Max 256G 黑": 50900,
-    "iPhone 18 Pro Max 256G 紅": 50900,
-    "iPhone 18 Pro Max 256G 藍": 49900
+    "iPhone 18 Pro Max 256G 紅": 49900,
+    "iPhone 18 Pro Max 256G 藍": 50900
   },
   "2026-09-24": {
     "iPhone 18 Pro 256G 紅": 43600,
@@ -613,7 +613,17 @@
     "iPhone 18 Pro 256G 藍": 44500,
     "iPhone 18 Pro Max 256G 銀": 50900,
     "iPhone 18 Pro Max 256G 黑": 50900,
-    "iPhone 18 Pro Max 256G 紅": 50900,
-    "iPhone 18 Pro Max 256G 藍": 49900
+    "iPhone 18 Pro Max 256G 紅": 49900,
+    "iPhone 18 Pro Max 256G 藍": 50900
+  },
+  "2026-09-25": {
+    "iPhone 18 Pro 256G 紅": 43600,
+    "iPhone 18 Pro 256G 銀": 44000,
+    "iPhone 18 Pro 256G 黑": 44500,
+    "iPhone 18 Pro 256G 藍": 44500,
+    "iPhone 18 Pro Max 256G 紅": 49900,
+    "iPhone 18 Pro Max 256G 銀": 50900,
+    "iPhone 18 Pro Max 256G 黑": 50900,
+    "iPhone 18 Pro Max 256G 藍": 50900
   }
 }
