@@ -23,7 +23,8 @@ from pathlib import Path
 from html.parser import HTMLParser
 
 import requests
-from PIL import Image, ImageEnhance, ImageDraw
+from PIL import Image, ImageEnhance, ImageDraw, ImageFilter
+import numpy as np
 
 try:
     import pytesseract
@@ -66,91 +67,142 @@ PRICES_JSON    = BASE_DIR / "prices.json"
 DASHBOARD_HTML = BASE_DIR / "index.html"
 
 # ══════════════════════════════════════════════════════
-#  📐 機型定義：名稱 + 價格區間 + 上次成功的座標（快取）
-#  座標會在辨識失敗時自動重新掃描並更新至 coords.json
+#  📐 版面解析：依格線切列，讀「區段標題 / 容量 / 顏色字 / 價格」
+#  店家常重排顏色分組，所以不用固定座標，而是逐列讀標籤配對價格
 # ══════════════════════════════════════════════════════
 
-MODELS_DEF = [
-    {"name": "iPhone 18 Pro 256G 紅",     "range": (38000, 47500), "default_coords": (873, 1573, 966, 1609), "scan_radius": 80, "strict_radius": 25},
-    {"name": "iPhone 18 Pro 256G 銀",     "range": (38000, 47500), "default_coords": (873, 1605, 966, 1641), "scan_radius": 80, "strict_radius": 25},
-    {"name": "iPhone 18 Pro 256G 黑",     "range": (38000, 47500), "default_coords": (873, 1637, 966, 1673), "scan_radius": 80, "strict_radius": 25},
-    {"name": "iPhone 18 Pro 256G 藍",     "range": (38000, 47500), "default_coords": (873, 1668, 966, 1704), "scan_radius": 80, "strict_radius": 25},
-    # ProMax 256G：紅（紅字在庫）是黑框線下第一列，銀/黑/藍（灰字）在其下方
-    # 行距約 36px；strict_radius=20 防止相鄰行互搶 + 防飄進上方 512G 區段
-    {"name": "iPhone 18 Pro Max 256G 紅", "range": (45000, 58000), "default_coords": (873, 1916, 966, 1952), "scan_radius": 60, "strict_radius": 20},
-    {"name": "iPhone 18 Pro Max 256G 銀", "range": (45000, 58000), "default_coords": (873, 1952, 966, 1988), "scan_radius": 60, "strict_radius": 20},
-    {"name": "iPhone 18 Pro Max 256G 黑", "range": (45000, 58000), "default_coords": (873, 1952, 966, 1988), "scan_radius": 60, "strict_radius": 20},
-    {"name": "iPhone 18 Pro Max 256G 藍", "range": (45000, 58000), "default_coords": (873, 1988, 966, 2024), "scan_radius": 60, "strict_radius": 20},
+COLORS = ["紅", "銀", "黑", "藍"]
+SECTION_MODELS = [            # 先比對較長的名稱
+    (re.compile(r"18\s*PRO\s*MAX"), "iPhone 18 Pro Max"),
+    (re.compile(r"18\s*PRO"),       "iPhone 18 Pro"),
 ]
+TRACK_CAPACITY = "256"
+MODEL_NAMES = [f"{m} 256G {c}" for m in ("iPhone 18 Pro", "iPhone 18 Pro Max") for c in COLORS]
+PRICE_RANGE = (20000, 150000)
 
-COORDS_JSON = BASE_DIR / "coords.json"
+LEFT_COL  = (5, 265)     # 區段標題（合併儲存格）
+LABEL_COL = (280, 860)   # 規格 / 顏色標籤
+CAP_X     = (326, 395)   # 容量文字（256G / 512G / 1TB）
+COLOR_X0  = 395          # 顏色字起點
+PRICE_X   = (870, 975)   # 現金價
 
-def load_coords() -> dict:
-    if COORDS_JSON.exists():
-        raw = json.loads(COORDS_JSON.read_text(encoding="utf-8"))
-        return {k: tuple(v) for k, v in raw.items()}
-    return {m["name"]: m["default_coords"] for m in MODELS_DEF}
+COLOR_GLYPHS_JSON = BASE_DIR / "color_glyphs.json"
 
-def save_coords(coords: dict):
-    COORDS_JSON.write_text(
-        json.dumps({k: list(v) for k, v in coords.items()}, ensure_ascii=False, indent=2),
-        encoding="utf-8"
-    )
 
-SCAN_RADIUS = 150  # 只掃描已知座標 ±150px，避免抓到遠處的干擾行
-
-def auto_scan_coords(img: Image.Image, current_coords: dict | None = None) -> dict:
-    """針對每個機型，只在已知 y ±150px 範圍內掃描，自動修正小幅漂移。
-    回傳 {model_name: (coords_tuple, price)} — price 直接來自掃描，避免重複 OCR 的不一致。
-    """
-    print("🔍 自動掃描座標中...")
-    results = {}  # name → (coords, price)
-
-    for m in MODELS_DEF:
-        lo, hi = m["range"]
-        name = m["name"]
-
-        # 決定掃描範圍
-        strict = m.get("strict_radius")
-        # strict 模型以 current_coords 為錨點（記錄上次成功位置），否則用 default
-        if current_coords and name in current_coords:
-            known_y = (current_coords[name][1] + current_coords[name][3]) // 2
+def _groups(idx) -> list:
+    """把遞增整數序列切成連續區段 [(start, end_inclusive), ...]"""
+    out = []
+    for i in idx:
+        if out and i == out[-1][1] + 1:
+            out[-1][1] = i
         else:
-            known_y = (m["default_coords"][1] + m["default_coords"][3]) // 2
-        radius = m.get("scan_radius", SCAN_RADIUS)
-        y_start = max(500, known_y - radius)
-        y_end   = min(img.size[1] - 36, known_y + radius)
+            out.append([i, i])
+    return [tuple(g) for g in out]
 
-        # 掃描
-        hits = []
-        for y1 in range(y_start, y_end, 4):
-            price = ocr_price(img, (873, y1, 966, y1 + 36))
-            if price and lo <= price <= hi:
-                hits.append((y1 + 18, price))
 
-        if not hits:
-            print(f"   ❌ {name} → ±{SCAN_RADIUS}px 範圍內未找到符合的行")
+def _load_glyphs() -> dict:
+    raw = json.loads(COLOR_GLYPHS_JSON.read_text(encoding="utf-8"))
+    return {k: np.array([[c == "#" for c in row] for row in v]) for k, v in raw.items()}
+
+
+def _classify_color(glyph, templates) -> tuple:
+    best = (None, 0.0)
+    for name, t in templates.items():
+        g = Image.fromarray(glyph.astype("uint8") * 255).resize((t.shape[1], t.shape[0]))
+        score = float(((np.asarray(g) > 127) == t).mean())
+        if score > best[1]:
+            best = (name, score)
+    return best
+
+
+def _ocr_band_price(img: Image.Image, y1: int, y2: int) -> int | None:
+    """灰字（缺貨）與紅字都要讀得到：放大 + 高斯模糊 + 相對背景門檻，多組參數投票"""
+    pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
+    crop = img.convert("L").crop((PRICE_X[0], y1 + 2, PRICE_X[1], y2 - 1))
+    crop = crop.resize((crop.width * 4, crop.height * 4), Image.BICUBIC)
+    votes = []
+    for blur, off in ((4, 6), (4, 10), (3, 10)):
+        a = np.asarray(crop.filter(ImageFilter.GaussianBlur(blur)), dtype=float)
+        b = Image.fromarray(np.where(a < np.median(a) - off, 0, 255).astype("uint8"))
+        text = pytesseract.image_to_string(
+            b, config="--psm 7 -c tessedit_char_whitelist=$0123456789,")
+        m = re.search(r"(\d[\d,]{3,})", text)
+        if m:
+            v = int(m.group(1).replace(",", ""))
+            if PRICE_RANGE[0] <= v <= PRICE_RANGE[1]:
+                votes.append(v)
+    return max(set(votes), key=votes.count) if votes else None
+
+
+def _ocr_text(img: Image.Image, box: tuple, whitelist: str, psm: int) -> str:
+    pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
+    a = np.asarray(img.crop(box)).astype(int)
+    b = Image.fromarray(np.where(a.min(axis=2) < 180, 0, 255).astype("uint8"))
+    b = b.resize((b.width * 3, b.height * 3), Image.LANCZOS)
+    return pytesseract.image_to_string(
+        b, config=f"--psm {psm} -c tessedit_char_whitelist={whitelist}").upper()
+
+
+def parse_price_table(img: Image.Image) -> list:
+    """回傳每一列 {section, capacity, colors, price, y}"""
+    a = np.asarray(img).astype(int)
+    H = a.shape[0]
+    dark = a.sum(axis=2) < 200
+    not_bg = a.min(axis=2) < 200
+    blue = (a[:, :, 0] <= 160) & (a[:, :, 2] >= 200)
+    templates = _load_glyphs()
+
+    lx1, lx2 = LEFT_COL
+    sec_lines = _groups(np.where(dark[:, lx1:lx2].sum(axis=1) >= (lx2 - lx1) * 0.95)[0])
+    rows = []
+    for (_, top), (bottom, _) in zip(sec_lines, sec_lines[1:]):
+        if bottom - top < 20:
+            continue
+        title = re.sub(r"\s+", " ", _ocr_text(img, (lx1, top + 1, lx2, bottom), "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ", 6))
+        section = next((name for pat, name in SECTION_MODELS if pat.search(title)), None)
+        if not section:
             continue
 
-        # 合併鄰近命中
-        clusters = []
-        for y, price in hits:
-            if clusters and y - clusters[-1][0] < 25:
-                clusters[-1] = ((y + clusters[-1][0]) // 2, price)
-            else:
-                clusters.append((y, price))
+        bx1, bx2 = LABEL_COL
+        seg = not_bg[top:bottom + 1, bx1:bx2]
+        row_lines = _groups(top + np.where(seg.sum(axis=1) >= (bx2 - bx1) * 0.85)[0])
+        for (_, y1), (y2, _) in zip(row_lines, row_lines[1:]):
+            if y2 - y1 < 15:
+                continue
+            cap = _ocr_text(img, (CAP_X[0], y1 + 2, CAP_X[1], y2 - 1), "0123456789GTB", 7)
+            mask = blue[y1 + 2:y2 - 1, COLOR_X0:LABEL_COL[1]]
+            cols = mask.any(axis=0)
+            colors = []
+            for c1, c2 in _groups(np.where(cols)[0]):
+                if c2 - c1 + 1 < 13:          # 「/」等窄符號
+                    continue
+                g = mask[:, c1:c2 + 1]
+                ys = np.where(g.any(axis=1))[0]
+                name, score = _classify_color(g[ys[0]:ys[-1] + 1], templates)
+                if score >= 0.8:
+                    colors.append(name)
+                else:
+                    print(f"   ⚠️  y={y1} 無法辨識的顏色字（最佳 {name} {score:.2f}）")
+            price = _ocr_band_price(img, y1, y2)
+            if not cap.strip() and price is None:
+                continue                       # 空白分隔列
+            rows.append({"section": section, "capacity": cap.strip(),
+                         "colors": colors, "price": price, "y": (y1, y2)})
+    return rows
 
-        # 選最靠近已知位置的 cluster，直接保留掃描到的價格
-        best_y, best_p = min(clusters, key=lambda c: abs(c[0] - known_y))
-        # strict 模型：若最近命中距錨點超過 strict_radius，視為鄰行干擾，拒絕
-        if strict and abs(best_y - known_y) > strict:
-            print(f"   ❌ {name} → 最近命中 y={best_y} 距錨點 {abs(best_y-known_y)}px > {strict}px，丟棄")
+
+def extract_prices(rows: list) -> dict:
+    """依列標籤對應到追蹤機型；標籤沒寫顏色代表四色同價"""
+    prices = {n: None for n in MODEL_NAMES}
+    for r in rows:
+        if TRACK_CAPACITY not in r["capacity"] or r["price"] is None:
             continue
-        coord = (873, best_y - 18, 966, best_y + 18)
-        results[name] = (coord, best_p)
-        print(f"   ✅ {name} → y={best_y-18}~{best_y+18}  ${best_p:,}")
+        for c in (r["colors"] or COLORS):
+            name = f"{r['section']} 256G {c}"
+            if name in prices and prices[name] is None:
+                prices[name] = r["price"]
+    return prices
 
-    return results
 
 COLOR_META = {
     "紅": {"hex": "#ef4444", "dot": "background:#ef4444"},
@@ -245,35 +297,14 @@ def download_image(url: str) -> Image.Image:
 #  🔍 OCR
 # ══════════════════════════════════════════════════════
 
-def ocr_price(img: Image.Image, box: tuple, scale: int = 4) -> int | None:
-    pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
-    try:
-        cropped = img.crop(box)
-        w, h = cropped.size
-        if w < 3 or h < 3:
-            return None
-        cropped = cropped.resize((w * scale, h * scale), Image.LANCZOS)
-        cropped = cropped.convert("L")
-        cropped = ImageEnhance.Contrast(cropped).enhance(2.5)
-        text = pytesseract.image_to_string(
-            cropped,
-            config="--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789,"
-        ).strip()
-        m = re.search(r"(\d[\d,]{3,})", text)
-        return int(m.group(1).replace(",", "")) if m else None
-    except Exception:
-        return None
-
-
-def calibrate(img: Image.Image, coords: dict):
-    """在原圖上標示所有 OCR 框，儲存為 calibrate.jpg 供人工比對"""
+def calibrate(img: Image.Image, rows: list):
+    """在原圖上標示解析出的每一列，儲存為 calibrate.jpg 供人工比對"""
     debug = img.copy()
     draw = ImageDraw.Draw(debug)
-    for name, box in coords.items():
-        draw.rectangle(box, outline="red", width=4)
-        price = ocr_price(img, box)
-        label = f"{name[:20]} → {'$'+f'{price:,}' if price else 'FAIL'}"
-        draw.text((box[0], max(0, box[1] - 20)), label, fill=(255, 255, 0))
+    for r in rows:
+        y1, y2 = r["y"]
+        draw.rectangle((LABEL_COL[0], y1, PRICE_X[1], y2), outline="red", width=2)
+        print(f"   y={y1:4d}  {r['section']:18s} {r['capacity']:6s} {'/'.join(r['colors']) or '(四色)':10s} {r['price']}")
     out = BASE_DIR / "calibrate.jpg"
     debug.save(out)
     print(f"📸 已儲存 {out}")
@@ -609,44 +640,17 @@ def main():
     img = download_image(url)
     print(f"   尺寸：{img.size[0]}×{img.size[1]} px")
 
-    coords = load_coords()
+    print("\n🔍 解析報價表...")
+    rows = parse_price_table(img)
 
     if is_calibrate:
-        calibrate(img, coords)
+        calibrate(img, rows)
         return
 
-    # 每次都先跑 auto_scan（傳入快取座標讓它優先選最近的 row）
-    # scan 直接回傳 (coords, price)，避免重複 OCR 的不一致
-    # 掃不到的機型 fallback 用快取座標重新 OCR
-    scan_results = auto_scan_coords(img, current_coords=coords)  # {name: (coord, price)}
-
-    final_coords = {}
-    print("\n💰 OCR 辨識現金價：")
-    today_prices = {}
-    for m in MODELS_DEF:
-        model = m["name"]
-        lo, hi = m["range"]
-        if model in scan_results:
-            coord, price = scan_results[model]
-            final_coords[model] = coord
-            today_prices[model] = price
-            print(f"   {model}: ${price:,}")
-        else:
-            # strict 模型掃描失敗：重置為 default 避免錯誤座標累積
-            if m.get("strict_radius"):
-                final_coords[model] = m["default_coords"]
-            else:
-                final_coords[model] = coords.get(model, m["default_coords"])
-            print(f"   ⚠️  {model} 掃描未找到，使用快取座標")
-            price = ocr_price(img, final_coords[model])
-            if price and lo <= price <= hi:
-                today_prices[model] = price
-                print(f"   {model}: ${price:,}")
-            else:
-                today_prices[model] = None
-                print(f"   {model}: ⚠️  辨識失敗")
-
-    save_coords(final_coords)
+    today_prices = extract_prices(rows)
+    print("\n💰 現金價：")
+    for model, price in today_prices.items():
+        print(f"   {model}: {'$'+format(price, ',') if price else '⚠️  未找到'}")
 
     # 儲存
     date_str = gif_date.isoformat()
